@@ -1,0 +1,38 @@
+# Build outputs
+/build/
+/out/
+/dist/
+/.cache/
+*.dll
+*.exe
+*.obj
+*.o
+*.pdb
+*.ilk
+*.lib
+*.a
+*.zip
+*.swoftyaddon
+
+# Local configuration and IDE state
+.env
+.env.*
+!.env.example
+.vs/
+.idea/
+.vscode/
+CMakeUserPresets.json
+*.user
+*.suo
+
+# Logs, captures and game state
+/logs/
+/captures/
+/recordings/
+/saves/
+*.log
+*.dmp
+
+# OS files
+.DS_Store
+Thumbs.db
