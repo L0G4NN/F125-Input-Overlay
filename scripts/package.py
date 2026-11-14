@@ -11,6 +11,13 @@ assert manifest['schema_version'] == 1
 assert manifest['experimental_features'] == ['overlay']
 assert manifest['operations']['native'] == [{'dll': 'native/input_overlay.dll'}]
 assert len({o['id'] for o in manifest['options']}) == len(manifest['options'])
+for option in manifest['options']:
+    if option['type'] == 'slider':
+        lo, hi, step = option['min'], option['max'], option['step']
+        assert step > 0 and hi > lo
+        assert (hi-lo)/step <= 100, f"{option['id']}: more than 100 steps"
+        assert lo <= option['default'] <= hi
+        assert abs((option['default']-lo)/step - round((option['default']-lo)/step)) < 1e-8
 dll = root / 'build/native/input_overlay.dll'
 binary = dll.read_bytes()
 assert binary[:2] == b'MZ', 'Missing Windows PE header'
