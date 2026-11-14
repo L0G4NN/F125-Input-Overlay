@@ -22,9 +22,9 @@ Exit: evidence supports the proposed data and rendering path.
 
 ## M2 — Trace core
 
-- [ ] Implement validated input samples, state transitions and bounded history.
-- [ ] Implement time-based graph geometry.
-- [ ] Add synthetic tests for edge cases and variable frame rates.
+- [x] Implement validated input samples, state transitions and bounded history.
+- [x] Implement time-based graph geometry.
+- [x] Add synthetic tests for edge cases and variable frame rates.
 
 Exit: deterministic core behaviour without requiring F1 25.
 
@@ -50,3 +50,5 @@ Exit: a tagged release with exact supported versions and honest test evidence.
 
 User-selectable colours, steering trace, optional hotkeys, dragging, lap comparison and recording.
 Keep them separate from the initial throttle/brake implementation.
+
+The portable M2 core was implemented independently while M1 native source freshness and lifecycle questions remain open. M1 has not passed its exit gate.
