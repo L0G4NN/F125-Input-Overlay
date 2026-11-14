@@ -67,3 +67,7 @@ Prefer supported native telemetry and overlay APIs. Pin an upstream commit befor
 Do not copy memory offsets or create signature hooks as an unreviewed fallback.
 If field freshness cannot be established natively, assess EA's UDP output as a separate adapter before changing the design.
 No hand-written UDP decoder or external overlay is included in this documentation milestone.
+
+## 0.1.0 implementation
+
+The first native build uses a render-thread-owned UDP receiver and trace instead of native cached telemetry. No history is shared across threads. Only atomic settings and lifecycle flags cross threads. This supersedes the preliminary flow-thread sampling/snapshot proposal above. Silent data loss is marked unavailable; source timestamps reset on rewind, and session events clear history.

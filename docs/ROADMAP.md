@@ -52,3 +52,7 @@ User-selectable colours, steering trace, optional hotkeys, dragging, lap compari
 Keep them separate from the initial throttle/brake implementation.
 
 The portable M2 core was implemented independently while M1 native source freshness and lifecycle questions remain open. M1 has not passed its exit gate.
+
+## First import build
+
+Native DLL, UDP adapter, settings, traces, bars and packaging are implemented. SDK and compiler are pinned. In-game lifecycle verification, actual launcher import, coexistence and performance remain open M1/M3/M4 gates.

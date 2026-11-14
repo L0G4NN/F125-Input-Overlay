@@ -49,3 +49,7 @@ Set a numerical release budget once a representative baseline exists.
 
 Do not release until core tests pass, the pinned native build succeeds, package validation passes and a real in-game smoke test verifies both traces.
 Record missing matrix coverage as unsupported or untested.
+
+## 0.1.0 package evidence
+
+Zig 0.14.1 successfully cross-compiled the Windows AMD64 DLL. PE inspection confirms SwoftyAddonApi and SwoftyAddonInit exports and system DLL imports only. Added synthetic EA UDP packet checks for size/version/format/player validation, values, missing data, duplicates, ordering, flashback and session resets. Archive CRC and manifest DLL path checks pass. Actual launcher validation/import and in-game display remain pending; no Wine or Windows game runtime is available here.
