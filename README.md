@@ -2,7 +2,9 @@
 
 A planned Swofty Launcher addon for F1 25 that displays a scrolling throttle and brake trace, inspired by the input overlays used in sim racing.
 
-**Status: initial trace core implemented and tested. Native addon integration is pending; no installable release exists yet.**
+**Status: experimental 0.1.0 import package built. Native Windows overlay and UDP input adapter implemented; actual Swofty import and in-game validation remain pending.**
+
+See [installation and telemetry settings](docs/INSTALL.md). The ZIP contains a compiled DLL; the GitHub source ZIP is not the install package.
 
 ## Planned first version
 
@@ -18,8 +20,7 @@ The purpose is to see braking application, trail-brake release and throttle pick
 ## Target and current limits
 
 Initial target: Windows x64, F1 25, offline single-player through Swofty Launcher.
-The preferred approach is a native C++ addon using Swofty's telemetry and overlay APIs.
-Both APIs are documented as experimental. Exact launcher, game, SDK and toolchain versions must be pinned during the first implementation milestone.
+The implementation uses Swofty's experimental overlay API and a loopback UDP receiver for EA's documented 2025 telemetry format. SDK revision and compiler are pinned in docs/SOURCES.md.
 
 No compatibility or performance claims have been validated in game. Linux/Proton, VR, split-screen, multiplayer and the 2026 Season Pack are outside the initial support claim.
 
@@ -42,7 +43,9 @@ Repository: [L0G4NN/F125-Input-Overlay](https://github.com/L0G4NN/F125-Input-Ove
 
 The repository includes a portable C++20 trace core in `src/core/trace.hpp`, deterministic checks in `tests/trace_test.cpp`, and `scripts/test.sh`. Run `bash scripts/test.sh` with GCC and Address/UndefinedBehavior sanitizers available.
 
-The adapter must supply confirmed fresh timestamps and verified lifecycle signals. The core does not obtain game telemetry or detect pauses by itself. A native addon and its manifest will follow the compatibility spike.
+The native adapter receives fresh UDP packets, resolves the local player from the packet header, and detects discontinuities. Swofty pause/resume and session events are used when available.
+
+Build: install `ziglang==0.14.1` or Zig 0.14.1, then run `ZIG=/path/to/zig bash scripts/build.sh`. Package with `python3 scripts/package.py` after the build.
 
 There are no automated GitHub Actions workflows yet. Add focused checks when there is executable code to validate.
 

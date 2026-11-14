@@ -4,7 +4,7 @@
 
 The portable trace core is implemented. Run `bash scripts/test.sh` using GCC with C++20 and sanitizer support.
 In a ptrace-hosted environment where LeakSanitizer cannot run, use `ASAN_OPTIONS=detect_leaks=0 bash scripts/test.sh`; AddressSanitizer and UndefinedBehaviorSanitizer remain enabled.
-No addon manifest, native build or install command is available yet.
+Native code is in src/swofty/plugin.cpp; addon/swofty.json is the package manifest. Run scripts/build.sh with Zig 0.14.1 and scripts/package.py to create the import ZIP. See INSTALL.md.
 
 ## First coding milestone: compatibility spike
 
@@ -52,3 +52,7 @@ A version is not supported until the relevant in-game matrix has been completed.
 
 Keep synthetic tests, compilation and real game validation explicitly separate.
 Never report a successful build as proof that the addon loads or that pedal traces are correct.
+
+## Implemented adapter decision
+
+The pinned telemetry implementation exposes cached car values and a flow-driven clock, without per-input packet freshness. The addon therefore decodes EA 2025 UDP datagrams itself. Receipt and overall frame IDs establish freshness; header session timestamps provide plot time. Rendering and ingestion have one render-thread owner; settings and lifecycle notifications use atomic values. The socket is nonblocking with a 128-datagram per-frame budget. Socket and SDK callback lifetime follows the game process; changing enabled addons requires a game restart.
