@@ -2,7 +2,9 @@
 
 ## Current state
 
-Documentation only. There is intentionally no build command, install command or addon manifest presented as working.
+The portable trace core is implemented. Run `bash scripts/test.sh` using GCC with C++20 and sanitizer support.
+In a ptrace-hosted environment where LeakSanitizer cannot run, use `ASAN_OPTIONS=detect_leaks=0 bash scripts/test.sh`; AddressSanitizer and UndefinedBehaviorSanitizer remain enabled.
+No addon manifest, native build or install command is available yet.
 
 ## First coding milestone: compatibility spike
 

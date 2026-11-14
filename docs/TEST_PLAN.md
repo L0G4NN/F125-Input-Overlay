@@ -1,6 +1,6 @@
 # Test plan
 
-No tests have run for addon behaviour: no addon implementation exists yet.
+Core checks pass with GCC, AddressSanitizer and UndefinedBehaviorSanitizer (leak detection disabled because this host runs under ptrace). Covered: overlapping inputs, duplicate timestamps, pause/resume, gaps, invalid values, rewind, ring capacity, age eviction, settings bounds and graph mapping at 30/60/144 Hz. No native addon or in-game checks have run.
 
 ## Automated core tests to add with code
 

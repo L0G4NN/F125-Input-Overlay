@@ -2,7 +2,7 @@
 
 A planned Swofty Launcher addon for F1 25 that displays a scrolling throttle and brake trace, inspired by the input overlays used in sim racing.
 
-**Status: project groundwork only. No addon code, compiled DLL or installable release exists yet.**
+**Status: initial trace core implemented and tested. Native addon integration is pending; no installable release exists yet.**
 
 ## Planned first version
 
@@ -40,8 +40,9 @@ Repository: [L0G4NN/F125-Input-Overlay](https://github.com/L0G4NN/F125-Input-Ove
 
 ## Repository contents
 
-This initial repository contains documentation, contribution templates, editor settings and ignore rules.
-Source folders, build scripts and the real addon manifest will be added with the first code change; empty placeholders are deliberately unnecessary.
+The repository includes a portable C++20 trace core in `src/core/trace.hpp`, deterministic checks in `tests/trace_test.cpp`, and `scripts/test.sh`. Run `bash scripts/test.sh` with GCC and Address/UndefinedBehavior sanitizers available.
+
+The adapter must supply confirmed fresh timestamps and verified lifecycle signals. The core does not obtain game telemetry or detect pauses by itself. A native addon and its manifest will follow the compatibility spike.
 
 There are no automated GitHub Actions workflows yet. Add focused checks when there is executable code to validate.
 
