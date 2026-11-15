@@ -9,7 +9,7 @@ mkdir -p build/native
     -o build/native/input_overlay.dll
 
 cat > build/BUILD-INFO.txt <<'INFO'
-F1 25 Input Overlay 0.2.0 experimental
+F1 25 Input Overlay 0.2.1 experimental
 Target: x86_64-windows-gnu
 Compiler requirement: Zig 0.14.1, C++20, -O2
 SDK: SwoftyLauncher 5d538d9a0afd6f90a417118807d86a5beb9e9c71

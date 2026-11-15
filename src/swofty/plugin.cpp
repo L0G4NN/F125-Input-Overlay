@@ -4,6 +4,7 @@
 #include <swofty_api.h>
 #include "core/udp.hpp"
 #include "core/layout.hpp"
+#include "core/hud_visibility.hpp"
 #include "core/receive_gate.hpp"
 #include "review_panel.hpp"
 #include <algorithm>
@@ -13,7 +14,7 @@
 
 namespace {
 const SwoftyApi* api{};
-std::atomic<bool> enabled{true}, bars{true}, paused{false}, reset_requested{false}, recording{true};
+std::atomic<bool> enabled{true}, bars{true}, paused{false}, reset_requested{false}, recording{true}, hide_in_menus{true};
 std::atomic<int> history{5}, width{420}, height{160}, opacity{25}, anchor{0}, horizontal{0}, vertical{0}, review_key{8};
 SOCKET sock=INVALID_SOCKET;
 input_trace::Feed feed;
@@ -30,6 +31,7 @@ void settings(const char* id,const SwoftySettingValue* v,void*) {
         if(std::strcmp(id,"enabled")==0) enabled=v->toggle!=0;
         if(std::strcmp(id,"bars")==0) bars=v->toggle!=0;
         if(std::strcmp(id,"recording")==0) recording=v->toggle!=0;
+        if(std::strcmp(id,"hide_in_menus")==0) hide_in_menus=v->toggle!=0;
     } else if(v->type==SWOFTY_SETTING_SLIDER && std::isfinite(v->slider)) {
         auto value=[&](int lo,int hi){return int(std::clamp(v->slider,double(lo),double(hi)));};
         if(std::strcmp(id,"review_key")==0) review_key=value(6,12);
@@ -113,6 +115,7 @@ void paint(SwoftyPaint* p,void*) {
     review_panel.paint(api,p,recorder,now,review_safe,
                        foreground_pid==GetCurrentProcessId(),VK_F1+review_key.load()-1,review_supported);
     if(review_panel.open()) return;
+    if(!input_trace::show_live_hud(hide_in_menus.load(),is_paused,recorder.on_track(now))) return;
     const auto panel=input_trace::layout(sw,sh,width.load(),height.load(),anchor.load(),horizontal.load(),vertical.load());
     const float x=panel.x,y=panel.y,w=panel.w,h=panel.h,scale=panel.scale;
     ov->rect(p,x,y,w,h,std::uint32_t(opacity.load()*255/100));
@@ -164,13 +167,14 @@ void start() {
     review_supported=version && version()>=3;
     if(review_supported && !recorder.initialize()) { review_supported=false; api->log("[input-overlay] review pool allocation failed; live overlay remains enabled"); }
     if(!review_supported) api->log("[input-overlay] lap review needs overlay input v3; live overlay remains enabled");
-    const char* names[]={"enabled","bars","history","width","height","opacity","anchor","horizontal","vertical","recording","review_key"};
+    const char* names[]={"enabled","bars","history","width","height","opacity","anchor","horizontal","vertical","recording","review_key","hide_in_menus"};
     for(auto id:names) {
-        const unsigned type=(std::strcmp(id,"enabled")==0 || std::strcmp(id,"bars")==0 || std::strcmp(id,"recording")==0)?SWOFTY_SETTING_TOGGLE:SWOFTY_SETTING_SLIDER;
+        const unsigned type=(std::strcmp(id,"enabled")==0 || std::strcmp(id,"bars")==0 || std::strcmp(id,"recording")==0 || std::strcmp(id,"hide_in_menus")==0)?SWOFTY_SETTING_TOGGLE:SWOFTY_SETTING_SLIDER;
         SwoftySettingValue v{};
         if(api->setting && api->setting(id,type,&v)) settings(id,&v,nullptr);
         if(api->watch_setting) api->watch_setting(id,settings,nullptr);
     }
+    api->log("[input-overlay] live HUD hidden in menus by default; requires fresh UDP lap data while driving");
     if(api->events) {
         api->events->subscribe(SWOFTY_EVENT_SESSION_START,reset_event,nullptr,nullptr);
         api->events->subscribe(SWOFTY_EVENT_SESSION_END,reset_event,nullptr,nullptr);

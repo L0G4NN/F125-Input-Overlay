@@ -31,5 +31,18 @@ int main() {
     input.keys_pressed[119/8]|=1u<<(119%8);paint();check(p.open());input={};paint(true,false);check(!p.open() && !focused);
     focus_result=SWOFTY_ASSET_LATE;input.keys_pressed[119/8]|=1u<<(119%8);paint();check(!p.open() && !focused);
     focus_result=SWOFTY_ASSET_OK;paint();check(p.open());input={};input.keys_pressed[27/8]|=1u<<(27%8);paint();check(!p.open() && !focused);
+    // Setup naming: closed review must not acquire focus or draw, even with typed characters.
+    input={};input.char_count=1;input.chars[0]='A';int acquisitions=focus_calls;
+    paint();check(!p.open() && !focused && focus_calls==acquisitions);
+    // Returning to the game with keyboard, characters or controller navigation releases review.
+    for(int kind=0;kind<4;++kind) {
+        input={};input.keys_pressed[119/8]|=1u<<(119%8);paint();check(p.open() && focused);
+        input={};
+        if(kind==0) {input.char_count=1;input.chars[0]='S';}
+        if(kind==1) input.keys_pressed[13/8]|=1u<<(13%8); // Enter in game setup/menu
+        if(kind==2) input.pad_pressed=SWOFTY_PAD_A;
+        if(kind==3) input.pad_ly=.7f;
+        paint();check(!p.open() && !focused);
+    }
     std::cout<<"Panel focus, feature-gating and draw-budget checks passed\n";
 }
