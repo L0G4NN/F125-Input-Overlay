@@ -5,6 +5,7 @@
 #include "core/udp.hpp"
 #include "core/layout.hpp"
 #include "core/receive_gate.hpp"
+#include "review_panel.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
@@ -12,19 +13,26 @@
 
 namespace {
 const SwoftyApi* api{};
-std::atomic<bool> enabled{true}, bars{true}, paused{false}, reset_requested{false};
-std::atomic<int> history{5}, width{420}, height{160}, opacity{25}, anchor{0}, horizontal{0}, vertical{0};
+std::atomic<bool> enabled{true}, bars{true}, paused{false}, reset_requested{false}, recording{true};
+std::atomic<int> history{5}, width{420}, height{160}, opacity{25}, anchor{0}, horizontal{0}, vertical{0}, review_key{8};
 SOCKET sock=INVALID_SOCKET;
 input_trace::Feed feed;
 input_trace::ReceiveGate receive_gate;
+input_trace::review::Recorder recorder;
+input_trace::review::Panel review_panel;
+bool review_supported{};
+using PauseQuery=std::uint32_t (*)();
+PauseQuery pause_query{};
 bool attempted{}, socket_error{}, was_enabled=true;
 void settings(const char* id,const SwoftySettingValue* v,void*) {
     if(!v) return;
     if(v->type==SWOFTY_SETTING_TOGGLE) {
         if(std::strcmp(id,"enabled")==0) enabled=v->toggle!=0;
         if(std::strcmp(id,"bars")==0) bars=v->toggle!=0;
+        if(std::strcmp(id,"recording")==0) recording=v->toggle!=0;
     } else if(v->type==SWOFTY_SETTING_SLIDER && std::isfinite(v->slider)) {
         auto value=[&](int lo,int hi){return int(std::clamp(v->slider,double(lo),double(hi)));};
+        if(std::strcmp(id,"review_key")==0) review_key=value(6,12);
         if(std::strcmp(id,"history")==0) history=value(2,15);
         if(std::strcmp(id,"width")==0) width=value(280,900);
         if(std::strcmp(id,"height")==0) height=value(120,360);
@@ -58,19 +66,23 @@ void open_socket() {
 }
 void paint(SwoftyPaint* p,void*) {
     const bool reset=reset_requested.exchange(false);
-    if(reset) feed.clear();
+    if(reset) { feed.clear(); recorder.reset(); if(review_supported) review_panel.close(api->overlay); }
     bool on=enabled.load();
     if(!on) {
         if(sock!=INVALID_SOCKET) { closesocket(sock); sock=INVALID_SOCKET; WSACleanup(); }
-        attempted=false; socket_error=false; feed.clear(); was_enabled=false; return;
+        attempted=false; socket_error=false; feed.clear();
+        recorder.set_recording(false); recorder.gap();
+        if(review_supported) review_panel.close(api->overlay);
+        was_enabled=false; return;
     }
     if(!attempted) open_socket();
-    if(on!=was_enabled) {feed.clear(); receive_gate=input_trace::ReceiveGate{}; was_enabled=on;}
+    if(on!=was_enabled) {feed.clear(); recorder.reset(); receive_gate=input_trace::ReceiveGate{}; was_enabled=on;}
+    recorder.set_recording(recording.load());
     feed.trace.set_history(history.load());
-    const bool is_paused=paused.load();
+    const bool is_paused=pause_query?pause_query()!=0:paused.load();
     if(is_paused) feed.trace.pause(); else feed.trace.resume();
     const double now=double(GetTickCount64())/1000;
-    if(receive_gate.begin(now,reset,is_paused) && !is_paused) feed.trace.unavailable();
+    if(receive_gate.begin(now,reset,is_paused)) { recorder.gap(); if(!is_paused) feed.trace.unavailable(); }
     if(sock!=INVALID_SOCKET) {
         unsigned char packet[2048];
         bool drained=false;
@@ -79,19 +91,28 @@ void paint(SwoftyPaint* p,void*) {
             int got=recv(sock,reinterpret_cast<char*>(packet),sizeof packet,0);
             if(got==SOCKET_ERROR) {
                 const int error=WSAGetLastError();
-                if(error==WSAEMSGSIZE) { feed.trace.unavailable(); continue; }
+                if(error==WSAEMSGSIZE) { feed.trace.unavailable(); recorder.gap(); continue; }
                 if(error==WSAEWOULDBLOCK) { receive_gate.drained(); drained=true; }
-                else { receive_gate.exhausted(); feed.trace.unavailable(); }
+                else { receive_gate.exhausted(); feed.trace.unavailable(); recorder.gap(); }
                 break;
             }
-            if(!is_paused && receive_gate.accept()) feed.accept({packet,std::size_t(got)},now);
+            if(!is_paused && receive_gate.accept()) {
+                const std::span<const unsigned char> bytes{packet,std::size_t(got)};
+                feed.accept(bytes,now); recorder.accept(bytes,now);
+            }
         }
-        if(!drained) { receive_gate.exhausted(); feed.trace.unavailable(); }
+        if(!drained) { receive_gate.exhausted(); feed.trace.unavailable(); recorder.gap(); }
     }
     if(!on) return;
     feed.tick(now);
     float sw=0,sh=0; auto ov=api->overlay; ov->size(p,&sw,&sh);
     if(sw<1 || sh<1) return;
+    const bool review_safe=is_paused || recorder.garage(now);
+    DWORD foreground_pid=0;
+    if(review_supported && review_safe) GetWindowThreadProcessId(GetForegroundWindow(),&foreground_pid);
+    review_panel.paint(api,p,recorder,now,review_safe,
+                       foreground_pid==GetCurrentProcessId(),VK_F1+review_key.load()-1,review_supported);
+    if(review_panel.open()) return;
     const auto panel=input_trace::layout(sw,sh,width.load(),height.load(),anchor.load(),horizontal.load(),vertical.load());
     const float x=panel.x,y=panel.y,w=panel.w,h=panel.h,scale=panel.scale;
     ov->rect(p,x,y,w,h,std::uint32_t(opacity.load()*255/100));
@@ -136,9 +157,16 @@ void register_overlay(double,void*) {
     }
 }
 void start() {
-    const char* names[]={"enabled","bars","history","width","height","opacity","anchor","horizontal","vertical"};
+    HMODULE core=GetModuleHandleW(L"swofty_core.dll");
+    using VersionQuery=std::uint32_t (*)();
+    auto version=core?std::bit_cast<VersionQuery>(GetProcAddress(core,"SwoftyCoreOverlayVersion")):nullptr;
+    pause_query=core?std::bit_cast<PauseQuery>(GetProcAddress(core,"SwoftyCorePauseReasons")):nullptr;
+    review_supported=version && version()>=3;
+    if(review_supported && !recorder.initialize()) { review_supported=false; api->log("[input-overlay] review pool allocation failed; live overlay remains enabled"); }
+    if(!review_supported) api->log("[input-overlay] lap review needs overlay input v3; live overlay remains enabled");
+    const char* names[]={"enabled","bars","history","width","height","opacity","anchor","horizontal","vertical","recording","review_key"};
     for(auto id:names) {
-        const unsigned type=(std::strcmp(id,"enabled")==0 || std::strcmp(id,"bars")==0)?SWOFTY_SETTING_TOGGLE:SWOFTY_SETTING_SLIDER;
+        const unsigned type=(std::strcmp(id,"enabled")==0 || std::strcmp(id,"bars")==0 || std::strcmp(id,"recording")==0)?SWOFTY_SETTING_TOGGLE:SWOFTY_SETTING_SLIDER;
         SwoftySettingValue v{};
         if(api->setting && api->setting(id,type,&v)) settings(id,&v,nullptr);
         if(api->watch_setting) api->watch_setting(id,settings,nullptr);

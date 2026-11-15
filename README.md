@@ -2,7 +2,7 @@
 
 A Swofty Launcher addon for F1 25 that displays a scrolling throttle and brake trace, inspired by the input overlays used in sim racing.
 
-**Status: experimental 0.1.4 import package built. Native Windows overlay and UDP input adapter implemented; actual Swofty import and in-game validation remain pending.**
+**Status: experimental 0.2.0 import package built. Native Windows overlay, bounded lap recorder and F8 review panel implemented; actual Swofty import and in-game validation remain pending.**
 
 See [installation and telemetry settings](docs/INSTALL.md). The ZIP contains a compiled DLL; the GitHub source ZIP is not the install package.
 
@@ -34,7 +34,7 @@ Repository: [L0G4NN/F125-Input-Overlay](https://github.com/L0G4NN/F125-Input-Ove
 | [Architecture](docs/ARCHITECTURE.md) | Components, timing, data ownership and failure handling |
 | [Development](docs/DEVELOPMENT.md) | Build strategy and first implementation steps |
 | [Test plan](docs/TEST_PLAN.md) | Unit, integration and in-game checks |
-| [Lap review plan](docs/LAP_REVIEW.md) | Planned F8 session lap browser and X/Y comparison; not implemented |
+| [Lap review plan](docs/LAP_REVIEW.md) | F8 lap browser, X/Y comparison, limits and validation status |
 | [Roadmap](docs/ROADMAP.md) | Ordered milestones and completion gates |
 | [Sources and compatibility](docs/SOURCES.md) | Upstream references and unresolved assumptions |
 | [Contributing](CONTRIBUTING.md) | Branch and review workflow |
@@ -58,3 +58,5 @@ No game assets are included. The vendored SDK header retains its MIT licence. Th
 Position and size are adjustable through ADDON SETTINGS: Width, Height, Corner, Horizontal position and Vertical position. See docs/INSTALL.md for the percentage-based placement controls.
 
 See [reference conformance review](docs/CONFORMANCE.md) for checked API contracts and outstanding runtime checks.
+
+F8 opens session lap review in the garage or while paused on cores with overlay input v3. Select X/Y for distance-aligned min/max pedal comparisons, zoom with the wheel and drag to pan. Up to 128 full traces are kept in a fixed pool; later laps retain timing only. See [lap review](docs/LAP_REVIEW.md) for the 24.2 MiB pool, conservative flashback reset and unverified game behaviour.

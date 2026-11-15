@@ -62,4 +62,4 @@ Native settings include 0–100% horizontal/vertical travel from the chosen corn
 
 ## Planned lap review extension
 
-The F8 full-session lap browser and X/Y distance comparison are specified in [LAP_REVIEW.md](LAP_REVIEW.md). This extends the original deferred lap recording/comparison scope. It is documentation only and does not change the current build or its settings.
+The F8 full-session lap browser and X/Y distance comparison are specified in [LAP_REVIEW.md](LAP_REVIEW.md). This extends the original deferred lap recording/comparison scope. The experimental 0.2.0 build implements the first iteration with a recording toggle and F6–F12 review key setting. Actual game acceptance remains pending.

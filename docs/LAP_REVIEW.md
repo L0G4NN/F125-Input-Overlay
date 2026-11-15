@@ -1,6 +1,6 @@
 # Session lap review and comparison
 
-Status: implementation specification, documentation only. No F8 panel or full-lap recorder exists in the current 0.1.4 build. Maintainer: L0G4NN.
+Status: experimental 0.2.0 implementation in dev. Portable/synthetic checks and Windows compilation are available; real-game validation is pending. The design below records the intended contract, with implemented decisions listed at the end. Maintainer: L0G4NN.
 
 ## Intended behaviour
 
@@ -100,3 +100,13 @@ For a missing or ambiguous bin, draw a gap. Valid samples separated by a discont
 - Record a qualifying lap, return to the garage, open F8, select X/Y, inspect braking, close, and restart the session. Verify no laps cross the session boundary.
 - Compare the same game scene with feature disabled, recording on/menu closed, and menu open with two maximum-size traces. Include 30/60 Hz telemetry and 60/144/240 FPS, low FPS, flood/budget recovery and 30-minute memory high-water checks.
 - Initial profiling target: closed-menu recording adds less than 0.1 ms CPU per render callback at normal 60 Hz telemetry; open review adds less than 0.5 ms CPU per presented frame, with no growing memory. These are engineering targets only; measure CPU and GPU frame-time distributions and revise design if missed. Never claim zero FPS impact from a synthetic CPU test.
+
+## Implemented first iteration
+
+- `src/core/lap_review.hpp`: render-owner store, startup-allocated 129-slot pool (128 finished plus active), 2 m min/max bins, stamp-based reuse without clearing/copying a full lap in paint, 1,024-entry metadata guard. Pool 25,362,432 bytes plus Recorder 34,360 bytes on this host; plot cache is fixed 24,576 bytes. No allocation after startup in the ingestion/plot paths.
+- UDP session (1), lap (2), pedals (6) and final classification (8) use the pinned EA 2025 v3 packed layouts. Per-stream frame ordering, full validation before tracking, exact-frame pairing in 8 bounded slots and <=100 ms source/receipt agreement. Metadata frames without a pedal partner never fabricate a sample. Spectating/network sessions and unknown/oversize tracks are not recorded.
+- `src/swofty/review_panel.hpp`: gated v3 input/focus, F8 default (F6–F12 setting), 12-row paginated lap list, X/Y selection, two min/max distance plots, cursor ranges, wheel zoom, drag pan and reset. Closed review performs no graph work; driving frames skip review input queries. No game pause or physics writes.
+- `src/core/review_plot.hpp`: only selected laps are aggregated to 512 columns; caches rebuild on selection/view/count changes. At most 2,048 v1 envelope line requests (fewer with dashed Y), not full-session rendering. Missing bins have no data and columns are never joined; overview shows envelopes of known samples, not a lossless raw trace.
+- Rewind policy is conservative: discard the whole recording generation and selections, retaining no abandoned attempt. Fine-grained rollback is deferred. Final classification may finalize the last active lap with unknown time. Session-history backfill and native menu injection are deferred.
+- New settings: recording toggle and function key number. Master disable stops both features; record-only disable retains completed laps. Unsupported overlay v3 or allocation failure leaves the existing live HUD operational. Input capture behaviour and session lifecycle still need real-game evidence.
+- Acceptance remains experimental until the manual matrix is run. See REVIEW_VALIDATION.md for measured local checks, memory and profiling limits.

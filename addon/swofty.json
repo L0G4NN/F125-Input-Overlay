@@ -2,9 +2,9 @@
   "schema_version": 1,
   "id": "l0g4nn.input-overlay",
   "name": "F1 25 Input Overlay",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "author": "L0G4NN",
-  "description": "Throttle and brake history. Enable UDP 2025 to 127.0.0.1:20777. Experimental test build.",
+  "description": "Live pedal traces and F8 session lap comparison. UDP 2025 to 127.0.0.1:20777. Experimental.",
   "kind": [
     "native"
   ],
@@ -25,7 +25,7 @@
     {
       "id": "enabled",
       "type": "toggle",
-      "label": "Show overlay",
+      "label": "Enable input overlay and lap review",
       "default": true,
       "binds": "native"
     },
@@ -103,6 +103,23 @@
       "default": 0,
       "min": 0,
       "max": 100,
+      "step": 1,
+      "binds": "native"
+    },
+    {
+      "id": "recording",
+      "type": "toggle",
+      "label": "Record session laps in memory",
+      "default": true,
+      "binds": "native"
+    },
+    {
+      "id": "review_key",
+      "type": "slider",
+      "label": "Lap review key (F6 to F12; default F8)",
+      "default": 8,
+      "min": 6,
+      "max": 12,
       "step": 1,
       "binds": "native"
     }
