@@ -59,3 +59,7 @@ Steering/clutch, best-lap comparison, CSV export, coaching, input filtering, raw
 ## Current implementation
 
 Native settings include 0–100% horizontal/vertical travel from the chosen corner. UDP parsing is implemented. Pause/session hooks, settings persistence and actual game performance still require runtime validation. Queue recovery deliberately waits for an empty socket boundary before accepting later packets.
+
+## Planned lap review extension
+
+The F8 full-session lap browser and X/Y distance comparison are specified in [LAP_REVIEW.md](LAP_REVIEW.md). This extends the original deferred lap recording/comparison scope. The experimental 0.2.0 build implements the first iteration with a recording toggle and F6–F12 review key setting. Actual game acceptance remains pending.

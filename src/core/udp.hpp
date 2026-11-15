@@ -16,14 +16,17 @@ struct Pedals {
 };
 // EA F1 25 v3: packed little-endian header 29 bytes, packet 6 v1,
 // 22 car entries of 60 bytes, 3 trailing panel/gear bytes.
-inline bool decode_header(std::span<const unsigned char> p, Pedals& out) {
-    if(p.size()!=1352 || (unsigned(p[0]) | unsigned(p[1])<<8)!=2025 ||
-       p[2]!=25 || p[5]!=1 || p[6]!=6 || p[27]>=22 || p[28]!=255) return false;
+inline bool decode_common(std::span<const unsigned char> p, Pedals& out, unsigned id, std::size_t size) {
+    if(p.size()!=size || p.size()<29 || (unsigned(p[0]) | unsigned(p[1])<<8)!=2025 ||
+       p[2]!=25 || p[5]!=1 || p[6]!=id || p[27]>=22 || p[28]!=255) return false;
     const float t=f32(p.data()+15);
     if(!std::isfinite(t) || t<0) return false;
     out={std::uint64_t(u32(p.data()+7)) | std::uint64_t(u32(p.data()+11))<<32,
          u32(p.data()+23), p[27], t, 0, 0};
     return true;
+}
+inline bool decode_header(std::span<const unsigned char> p, Pedals& out) {
+    return decode_common(p,out,6,1352);
 }
 // Header validation guarantees the stride and offsets used here.
 inline bool decode_pedals(std::span<const unsigned char> p, Pedals& out) {

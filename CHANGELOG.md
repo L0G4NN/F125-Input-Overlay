@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — Experimental session lap review
+
+- Add startup-allocated, bounded memory-only lap recording with 2 m throttle/brake envelopes, 128 detailed traces and metadata-only overflow.
+- Add validated lap/session/final-classification metadata and exact-frame pairing, gaps, invalid/partial labels and conservative flashback reset.
+- Add garage/paused F8 menu, X/Y distance comparisons, zoom/pan, range cursor, key setting and focus cleanup.
+- Keep closed-menu graph work and driving-state review input polling off; add lifecycle/focus/fuzz/benchmark checks and documented runtime limitations.
+- Windows compilation and synthetic checks only; in-game operation and performance remain unverified.
+
 ## Unreleased — packet validation hardening
 
 - Reject invalid pedals before session/frame tracking changes; preserve gap indication only for newer packets from the established player.

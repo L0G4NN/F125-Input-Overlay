@@ -77,3 +77,9 @@ The first native build uses a render-thread-owned UDP receiver and trace instead
 Feed.clear clears display history while retaining source identity and overall-frame ordering. A changed session retires its predecessor; player changes are checked against session frame ordering first. Invalid pedals never change session identity, retirement or ordering. A newer invalid packet for the established session/player marks unavailable, so the next valid packet starts a new segment. Old or other-player invalid packets are ignored. Paused ingestion returns without changing source tracking.
 
 ReceiveGate discards the socket queue after initial open, reset, pause/resume, render gaps over 500 ms and budget exhaustion. Discarding stays bounded at 128 datagrams per paint and continues until WSAEWOULDBLOCK. Later paints accept new arrivals. UDP has no authenticated send timestamp: this protects against local receive backlog, not arbitrary upstream delays or a malicious local sender.
+
+## Session lap review (0.2.0)
+
+The single render owner also ingests validated session/lap metadata, pairs it with same-frame pedals, and updates one 2 m envelope bin. Recording uses a startup-allocated fixed pool; completed laps transfer slot ownership with no whole-lap copies or clears. Stamps invalidate reused bins. At the 128-trace cap, subsequent completed laps are metadata-only.
+
+The F8 panel queries v3 input only in a fresh garage/verified pause and releases focus on close/state loss. The game pause state is never changed. The renderer aggregates only selected X/Y laps into fixed 512-column caches; no plot rebuilding or review drawing occurs while closed. All callback-crossing lifecycle/settings signals remain atomic. See LAP_REVIEW.md and REVIEW_VALIDATION.md for exact storage, pairing, rewind and validation limits.

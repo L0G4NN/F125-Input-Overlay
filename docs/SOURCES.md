@@ -46,3 +46,9 @@ Do not select a minimum supported version merely because a documentation page me
 SDK pinned at 5d538d9a0afd6f90a417118807d86a5beb9e9c71; unmodified MIT C ABI header vendored with licence. Compiler: Zig 0.14.1, target x86_64-windows-gnu. API v5 prefix used; only overlay enabled. UDP parsing follows EA v3: 29-byte header, 1352-byte telemetry packet, 60-byte car stride. This supersedes the preliminary native-telemetry approach. Runtime freshness is measured from accepted packet receipt, overall frame ID and source timestamp. No minimum game build or runtime compatibility has been certified.
 
 Reference documentation rechecked 15 November 2026: see CONFORMANCE.md. The pinned SDK remains unchanged; no claim of tested compatibility with every current launcher/game build is made.
+
+## Lap review source contracts (15 November 2026)
+
+Rechecked the official overlay reference (input/focus v3, virtual-key edges, controller limitations) and EA F1 25 UDP v3 PDF. Added decoders for session packet 1 (753 bytes, track length at 33, track ID 36, spectating 44, network-game 154), lap packet 2 (1285 bytes, 22 x 57-byte records from 29; last lap ms +0, distance +20, lap number +33, invalid +37, driver status +44), and final classification packet 8 (1042 bytes, num cars at 29, 22 x 46-byte entries from 30; completed laps +1, result status +5). All are version 1. Pedals remain packet 6.
+
+Runtime input/focus and pause-mask discovery follows the pinned SDK's `swofty/overlay.hpp` and `swofty/view.hpp` core-export feature checks. No SDK file modifications were needed. No tested game/core version is added until runtime testing is performed.

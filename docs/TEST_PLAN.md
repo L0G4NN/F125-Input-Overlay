@@ -61,3 +61,7 @@ Automated cases cover explicit resets followed by late old-session packets, same
 ## Packet validation before source tracking
 
 Regression tests verify malformed other-session packets cannot retire a legitimate session, invalid far-forward frames do not block subsequent real frames, and invalid old/other-player packets do not disturb live state. Pause/resume preserves tracking. Header and pedal decoding occur once per candidate, before identity/order commits; storage and receive limits are unchanged.
+
+## Lap review tests
+
+`bash scripts/test.sh` includes portable store/plot tests and a fake overlay test for v3/focus gating, closed-state drawing, feature fallback and focus cleanup. Additional commands and measured synthetic profiles are in REVIEW_VALIDATION.md. On Windows verify fresh garage/pause gating, exact packet frame pairing, F8/rebinding, Alt-Tab, controllers/wheels, both lap selections, full races and final-lap handling before claiming runtime support.

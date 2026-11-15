@@ -3,7 +3,7 @@
 This is an experimental Windows x64 build. It is packaged for Swofty import, but has not been loaded in a real F1 25 session here.
 
 1. Close F1 25. Use a current Swofty Launcher (the overlay feature requires at least 1.3.7).
-2. Install the `.swoftyaddon` from the Addons page, or drag `F125-Input-Overlay-0.1.4.swoftyaddon` onto the launcher window. It is an **addon**, with `swofty.json` at the archive root; leave it archived.
+2. Install the `.swoftyaddon` from the Addons page, or drag `F125-Input-Overlay-0.2.0.swoftyaddon` onto the launcher window. It is an **addon**, with `swofty.json` at the archive root; leave it archived.
 3. Enable **F1 25 Input Overlay** in your offline profile, then launch the game through Swofty.
 4. In F1 25's Telemetry Settings, set:
 
@@ -27,7 +27,7 @@ This is an experimental Windows x64 build. It is packaged for Swofty import, but
 - **Paused**: the core's pause/resume events freeze the trace. If those events are unavailable on your game build, silence is shown as unavailable instead; it is not guessed to mean pause.
 - **Flashback/restart**: history clears when a new session/player is seen or a newer overall frame carries a lower session timestamp. Older datagrams are discarded.
 
-To remove it, exit the game and disable the addon in your profile. No save changes, telemetry recording or uploads are performed.
+To remove it, exit the game and disable the addon in your profile. No save changes, disk telemetry recording or uploads are performed. Session lap recording stays in memory.
 
 ## Validation status
 
@@ -39,3 +39,17 @@ Pending on a Windows gaming PC: actual Swofty import, load, live display, pause/
 Open ADDON SETTINGS → F1 25 Input Overlay. Width and Height resize the panel. Corner picks the starting corner. Horizontal and Vertical position move inward from that corner: 0% stays at the corner, 50% centres that axis, 100% reaches the opposite edge. The full panel stays inside the screen. Values use native profile settings and survive a normal restart. Mouse dragging is not implemented.
 
 The addon ID is `l0g4nn.input-overlay`. Remove previous installations with a different ID before importing, then reapply settings. After reset, resume, a render gap over 500 ms, or a full receive budget, queued packets are discarded until the socket is empty. The next receive cycle resumes with a broken trace segment. This can briefly show waiting.
+
+## Experimental F8 lap review (0.2.0)
+
+Keep the master overlay enabled and **Record session laps in memory** on. UDP format 2025 must be enabled before driving the laps you want to review. Return to the garage (fresh lap metadata required) or pause the game, then press **F8**. The game window must be foreground. On older cores without overlay input v3 the live trace works but review is unavailable; check the loader log.
+
+Choose X and Y beside completed laps. X uses solid green/red, Y dashed; both graphs use distance in metres. Wheel over the graphs zooms, dragging pans, Reset view fits the lap, and Clear comparison removes Y. Cursor values show min/max ranges in a 2 m bin. Escape, Close or the configured function key releases focus without changing pause state. Native settings allow **F6–F12**, default F8. Avoid keys already bound by the game/other addons.
+
+Review focus does **not** block controllers or wheels. Opening is deliberately restricted to garage/verified pause; leaving that state, Alt-Tab, session replacement, master disable or another addon taking focus closes it. The live HUD is hidden while review is open. Closing review keeps recording; the master toggle stops the socket/recording and re-enabling starts a new session store. Turning only recording off preserves completed laps but discards the partial active lap.
+
+The pool is allocated/zeroed once during addon startup, not each lap or frame: 25,362,432 bytes (24.19 MiB), plus small fixed state/caches. At most 128 detailed traces are kept; later completed laps are labelled NO TRACE and retain timing metadata. There is a hard 1,024-entry metadata guard (the UDP lap-number field itself is only 8-bit). No silent eviction or increasing memory use over long races. The pool remains allocated until game exit even if recording is off.
+
+Unmatched frames, missing data, partial first laps and invalid laps are labelled or drawn with gaps. Flashback or lap-number rewind conservatively clears **all recorded laps** and X/Y selections; this first implementation does not reconstruct pre-flashback history. Final classification can confirm the final lap with time unknown if no authoritative lap-time transition arrived. No session-history time backfill is implemented. Unknown track IDs and tracks longer than 16,384 m are not recorded.
+
+Real game checks remain pending: packet pairing/garage transitions on your exact game build, keyboard/mouse focus, setting persistence, race finalization and CPU/GPU performance. The local tests and synthetic profiles are not an in-game validation.

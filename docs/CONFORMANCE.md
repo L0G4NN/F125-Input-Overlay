@@ -26,3 +26,9 @@ This is a source and package contract review, not certification of game compatib
 ## Manual completion
 
 Install the `.swoftyaddon` on the Addons page (or `swofty addons install FILE`), enable `l0g4nn.input-overlay`, run `swofty build`, then `swofty run --apply` and `swofty logs`. Verify settings restart persistence, game pause/resume and flashback, new sessions, port conflict, disable/re-enable, render stalls and 30-minute baseline versus enabled frame times. Record exact game/launcher/core versions and hardware in SOURCES.md. Automated game tests can be added once a supported runtime fixture is available.
+
+## Experimental lap-review extension (0.2.0)
+
+Runtime `SwoftyCoreOverlayVersion >= 3` gates every input/focus field access; older cores keep the API-v5 live HUD. `SwoftyCorePauseReasons` is queried only when exported. The same documented core-export approach is used by the pinned C++ wrappers; no new memory offsets/hooks are introduced. The v3 extension remains a runtime gate, not a claim that all launchers meeting the existing minimum support the review menu.
+
+New native bindings use a toggle and integral 6–12 slider; package API version remains 5. UDP decoders use EA 2025 v3 sizes/strides documented in SOURCES.md. Recording is memory-only and bounded; performance and input-focus conformance need the real-game matrix. See REVIEW_VALIDATION.md.

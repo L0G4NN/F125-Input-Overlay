@@ -1,0 +1,61 @@
+# Experimental lap review validation
+
+15 November 2026. Local Linux development host, GCC 14 C++20 portable tests; Zig 0.14.1 Windows AMD64 cross-build. No F1 25, Windows socket runtime or GPU session was used. Synthetic packet fixtures are not captured game telemetry.
+
+## Reproduce
+
+```sh
+ASAN_OPTIONS=detect_leaks=0 bash scripts/test.sh
+
+g++ -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror \
+  -fsanitize=address,undefined,float-cast-overflow -fno-omit-frame-pointer \
+  -Isrc tests/lap_review_fuzz.cpp -o build/lap_review_fuzz
+ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 ./build/lap_review_fuzz
+
+g++ -std=c++20 -O2 -Isrc tests/review_benchmark.cpp -o build/review_benchmark
+./build/review_benchmark
+
+ZIG=/path/to/zig bash scripts/build.sh
+python3 scripts/package.py
+```
+
+Leak detection is disabled because this host is run under ptrace. ASan/UBSan remain enabled on the relevant tests. The fake overlay tests exercise our focus/state logic, not actual Windows message delivery.
+
+## Completed checks
+
+- Trace, existing UDP validation/ordering, receive recovery and layout regressions.
+- Portable lap store: completion once, last-lap timing association, extrema/spike preservation, reversed packet arrival, missing exact-frame pairs, stale garage status, rewind generations, malformed metadata and 200-lap trace/metadata limits. Record off/on, final classification with unknown last-lap time and session replacement are covered.
+- Fake overlay: no drawing while closed, no input polling while unsafe, v3 feature gate, F8, focus failure/steal, Alt-Tab state loss and Escape release. Rendering uses a fixed number of columns and no whole-session scan.
+- 300,000 deterministic mutated packet/state cases with session/lap/pedal/classification packets, arbitrary lengths, reset/record toggles, and plot bounds under ASan/UBSan/float-cast checks. This is randomized fuzzing, not coverage-guided libFuzzer.
+- Windows DLL compilation with warnings as errors; manifest and archive structure validation. Exports and system DLL imports should be inspected for each supplied build.
+
+## Memory
+
+| Storage | Bytes |
+| --- | ---: |
+| Fixed 129 x 8,192 x 24-byte bin pool | 25,362,432 |
+| Recorder metadata, pairing/order/lifecycle state on this host | 34,360 |
+| Four 512-column plot envelopes | 24,576 |
+
+Total review-owned storage is about 24.25 MiB, below the 32 MiB budget, before small allocator bookkeeping/Panel scalars and upstream rendering buffers. Pool allocation and initialization happen once during ON_LOAD. The pool is retained until game exit; recording off does not free/reallocate it. Generation stamps avoid a 196 KiB trace clear or copy during each lap transition.
+
+The benchmark overrides C++ new/delete to count allocations after packet fixture and pool preparation. It observed zero C++ allocations during ingestion and plot rebuilds. There are no threads, locks, file writes, network sends or unbounded containers added to those paths.
+
+## Synthetic CPU profiles
+
+One local optimized run, average time for a validated metadata+pedal pair over 300,000 iterations per scenario:
+
+| Completed laps retained | Pair ingestion (microseconds) | New C++ allocations |
+| --- | ---: | ---: |
+| 0 | 0.031 | 0 |
+| 78 | 0.032 | 0 |
+| 128 | 0.031 | 0 |
+| 200 | 0.029 | 0 |
+
+Fixture byte updates are included; socket receive, the live HUD, operating system input calls and game/GPU work are excluded. Values are microbenchmarks on shared hardware and should not be interpreted as a guaranteed game callback budget. The important structural result is unchanged bounds/allocation count at high lap counts.
+
+An additional development-only profile fed 128 full 16,384 m synthetic laps, selected X/Y, and drew the cached menu through the pinned upstream portable HUD geometry/text implementation. Over 2,000 paints it averaged about 49.3 microseconds CPU, with 12,306 vertices in one batch. This excludes actual D3D12 upload, driver/GPU work, Winsock and Windows focus. The scratch profile depends on the separately checked-out upstream source and is not part of the standalone project test command. The project's fake-overlay test remains the portable input/state check.
+
+## Still required on a gaming PC
+
+Record exact game, launcher/core and hardware versions. Verify metadata field behaviour and exact overall-frame pairing from real packets, lap transitions/last-lap times in qualifying and full races, garage/pause checks, F8/rebinding, coexistence and controller/wheel limitations. Compare disabled, recording-with-menu-closed and open-X/Y scenes using CPU/GPU frame-time distributions and 30-minute memory high-water observations. Do not advertise zero performance impact or full runtime compatibility from these local results.
