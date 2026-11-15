@@ -1,65 +1,66 @@
 # F1 25 Input Overlay
 
-A Swofty Launcher addon for F1 25 that displays a scrolling throttle and brake trace, inspired by the input overlays used in sim racing.
+See how you apply throttle and brake while driving in F1 25, then compare recorded laps back in the garage. This addon runs through Swofty Launcher on Windows x64.
 
-**Status: experimental 0.3.0 under development. Native Windows overlay, bounded lap recorder and F8 review panel implemented; actual Swofty import and in-game validation remain pending.**
+- Live green throttle and red brake traces, percentage labels and optional input bars.
+- Five seconds of history by default, adjustable from 2 to 15 seconds.
+- Adjustable panel size, position and background opacity.
+- Session lap review with two-lap comparisons, distance-based graphs, zoom and pan.
 
-See [installation and telemetry settings](docs/INSTALL.md). The ZIP contains a compiled DLL; the GitHub source ZIP is not the install package.
+The display uses game-reported inputs, not pedal force or raw hardware readings. It does not provide driving assistance or change car behaviour.
 
-## Planned first version
+**Experimental: current source version 0.2.2. Actual Swofty import and in-game behaviour still need validation.** The initial target is offline single-player. Multiplayer, VR, Linux/Proton, split-screen and the 2026 Season Pack are outside the current support claim.
 
-- Green throttle and red brake traces on one 0–100% graph.
-- Five seconds of history by default, with new input entering at the right.
-- Live percentage labels and optional vertical input bars.
-- Adjustable position, size, background opacity and history length.
-- Clear handling of missing telemetry, pauses, flashbacks and session changes.
-- Read-only display of game-reported inputs; no driving assistance or changes to car behaviour.
+## Install and start driving
 
-The purpose is to see braking application, trail-brake release and throttle pickup. These are game-reported values, not a direct measurement of pedal force or raw hardware input.
+You need F1 25 on Windows x64 and Swofty Launcher 1.3.7 or newer, with its experimental overlay feature permitted. Lap review also requires a Swofty core with overlay input v3.
 
-## Target and current limits
+1. Check [Releases](https://github.com/L0G4NN/F125-Input-Overlay/releases) for a compiled `.swoftyaddon` package. GitHub's **Source code** ZIP is not an installable addon. If no compiled package is available, see the [developer build instructions](docs/DEVELOPMENT.md).
+2. Close F1 25, then import the `.swoftyaddon` using Swofty's **Addons** page or drag it onto the launcher. Leave the file archived.
+3. Enable **F1 25 Input Overlay** in your offline profile and launch the game through Swofty.
+4. In F1 25's Telemetry Settings, use:
 
-Initial target: Windows x64, F1 25, offline single-player through Swofty Launcher.
-The implementation uses Swofty's experimental overlay API and a loopback UDP receiver for EA's documented 2025 telemetry format. SDK revision and compiler are pinned in docs/SOURCES.md.
+   | Setting | Value |
+   | --- | --- |
+   | UDP Telemetry | On |
+   | UDP Broadcast Mode | Off |
+   | UDP IP Address | `127.0.0.1` |
+   | UDP Port | `20777` |
+   | UDP Format | `2025` |
+   | UDP Send Rate | 60 Hz (30 Hz is also accepted) |
 
-No compatibility or performance claims have been validated in game. Linux/Proton, VR, split-screen, multiplayer and the 2026 Season Pack are outside the initial support claim.
+5. Start an offline practice session and leave the garage. The live panel is hidden in the garage and menus by default. New input appears at the right of the graph.
 
-Repository: [L0G4NN/F125-Input-Overlay](https://github.com/L0G4NN/F125-Input-Overlay).
+Another telemetry app cannot listen on port 20777 at the same time. The addon uses a fixed port and does not forward packets.
 
-## Start here
+## Adjust the display
 
-| Document | Purpose |
-| --- | --- |
-| [Requirements](docs/REQUIREMENTS.md) | Display behaviour, settings and acceptance criteria |
-| [Architecture](docs/ARCHITECTURE.md) | Components, timing, data ownership and failure handling |
-| [Development](docs/DEVELOPMENT.md) | Build strategy and first implementation steps |
-| [Test plan](docs/TEST_PLAN.md) | Unit, integration and in-game checks |
-| [Lap review plan](docs/LAP_REVIEW.md) | F8 lap browser, X/Y comparison, limits and validation status |
-| [Roadmap](docs/ROADMAP.md) | Ordered milestones and completion gates |
-| [Sources and compatibility](docs/SOURCES.md) | Upstream references and unresolved assumptions |
-| [Contributing](CONTRIBUTING.md) | Branch and review workflow |
-| [Agent instructions](AGENTS.md) | Guidance for future coding sessions |
+Open **ADDON SETTINGS → F1 25 Input Overlay** in Swofty to change history, input bars, size, opacity and position.
 
-## Repository contents
+Choose a corner, then move inward with **Horizontal position** and **Vertical position**: 0% stays at the selected corner, 50% centres that axis, and 100% reaches the opposite edge. The panel stays inside the screen. Mouse dragging is not available.
 
-The repository includes a portable C++20 trace core in `src/core/trace.hpp`, deterministic checks in `tests/trace_test.cpp`, and `scripts/test.sh`. Run `bash scripts/test.sh` with GCC and Address/UndefinedBehavior sanitizers available.
+## Compare your laps
 
-The native adapter receives fresh UDP packets, resolves the local player from the packet header, and detects discontinuities. Swofty pause/resume and session events are used when available.
+Leave **Record session laps in memory** on while driving. Return to the garage with the game unpaused, release held controls, and press **F8** while the game window is active.
 
-Build: install `ziglang==0.14.1` or Zig 0.14.1, then run `ZIG=/path/to/zig bash scripts/build.sh`. Package with `python3 scripts/package.py` after the build.
+Select **X** and **Y** beside completed laps. X is cyan and Y is amber, with separate comparison graphs for throttle and brake. Scroll over a graph to zoom, drag to pan, and use **Reset view** to fit the lap. Press **Escape**, **Close**, or your review key to return to the game. The review key can be changed to F6–F12.
 
-There are no automated GitHub Actions workflows yet. Add focused checks when there is executable code to validate.
+Recorded laps stay in memory only. Exiting the game, a session reset or a flashback/rewind clears them. There is no save or export feature. See the [full user guide](docs/INSTALL.md#review-and-compare-laps) for controls and recording limits.
 
-## Ownership
+## Need help?
 
-Project maintained by L0G4NN. Original project material is reserved under [LICENSE](LICENSE).
-No game assets are included. The vendored SDK header retains its MIT licence. This project is not affiliated with EA, Codemasters, Formula 1, iRacing or Swofty.
+- **No panel while driving:** check the addon is enabled, the overlay feature is permitted, and UDP matches the table above. Missing or stale telemetry hides the panel by default.
+- **Waiting for UDP:** check format **2025**, address `127.0.0.1` and port `20777`. Close other apps listening on that port and restart the game.
+- **F8 does nothing:** return to the garage, unpause, release held controls and keep the game window active. Check recording and the master toggle are on. Older cores can support the live HUD without lap review.
 
-Position and size are adjustable through ADDON SETTINGS: Width, Height, Corner, Horizontal position and Vertical position. See docs/INSTALL.md for the percentage-based placement controls.
+See [installation, settings and troubleshooting](docs/INSTALL.md), or [report a problem](https://github.com/L0G4NN/F125-Input-Overlay/issues).
 
-See [reference conformance review](docs/CONFORMANCE.md) for checked API contracts and outstanding runtime checks.
+## More information
 
-F8 opens session lap review in the garage while the game is not paused on cores with overlay input v3. Select X/Y for distance-aligned pedal comparisons: separate lanes by default, optional overlay, cyan X and amber Y, zoom with the wheel and drag to pan. Up to 128 full traces are kept in a fixed pool; later laps retain timing only. See [lap review](docs/LAP_REVIEW.md) for the 24.2 MiB pool, conservative flashback reset and unverified game behaviour.
+- [User guide](docs/INSTALL.md) · [Changelog](CHANGELOG.md)
+- [Development and building](docs/DEVELOPMENT.md) · [Contributing](CONTRIBUTING.md)
+- [Requirements](docs/REQUIREMENTS.md) · [Architecture](docs/ARCHITECTURE.md) · [Test plan](docs/TEST_PLAN.md)
+- [Sources and compatibility](docs/SOURCES.md) · [Runtime validation notes](docs/CONFORMANCE.md)
 
 The live HUD is hidden in garage/paused/unknown contexts by default to avoid covering game-menu text. See [issue #8 validation](docs/SETUP_NAMING.md) for the mitigation, troubleshooting override and remaining in-game check.
 
