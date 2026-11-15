@@ -1,6 +1,6 @@
 # Requirements
 
-All items below describe intended behaviour, not implemented features.
+These are acceptance requirements; implementation and validation status are recorded in TEST_PLAN.md.
 
 ## First release scope
 
@@ -30,7 +30,7 @@ All items below describe intended behaviour, not implemented features.
 | Input bars | On | Independent of trace visibility |
 | Channels | Green throttle, red brake | Labels remain visible; colour selection may follow later |
 
-Logical dimensions are scaled once for display DPI. The entire panel must fit after scaling or resolution changes.
+Logical dimensions use min(framebuffer width / 1920, framebuffer height / 1080), matching Swofty ui_scale. The entire panel must fit after scaling or resolution changes.
 Position uses settings in the first release; mouse dragging and hotkeys are optional later work.
 
 ## Data and time contract
@@ -54,8 +54,8 @@ Settings must survive a normal restart using the supported launcher mechanism.
 
 ## Deferred
 
-Steering/clutch, best-lap comparison, CSV export, coaching, input filtering, raw pedal device access, bespoke UDP parsing, lap-distance plots and alternative renderers.
+Steering/clutch, best-lap comparison, CSV export, coaching, input filtering, raw pedal device access, lap-distance plots and alternative renderers.
 
-## 0.1.0 delivery notes
+## Current implementation
 
-Core and UDP checks are automated. Current native layout uses four corners with a fixed 24-unit margin; adjustable offsets remain deferred. Packet freshness is explicit. Pause and session events are wired but need verification on a real game build. This package is for first in-game testing, not a completed release against every acceptance criterion.
+Native settings include 0–100% horizontal/vertical travel from the chosen corner. UDP parsing is implemented. Pause/session hooks, settings persistence and actual game performance still require runtime validation. Queue recovery deliberately waits for an empty socket boundary before accepting later packets.

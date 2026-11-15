@@ -27,5 +27,26 @@ int main() {
     put(7,99); put(23,2); floating(15,.1f); check(f.accept(p,13));
     check(!f.trace.latest()->connected); // wall-clock gap
     floating(29+3*60+2,std::numeric_limits<float>::infinity()); check(!decode(p,d));
+    // Lifecycle reset must preserve the identity needed to reject old sessions.
+    Feed reset; put(7,1); put(23,100); floating(15,10); floating(29+3*60+2,.5f);
+    check(reset.accept(p,1)); reset.clear();
+    put(7,2); put(23,1); floating(15,0); check(reset.accept(p,2));
+    put(7,1); put(23,101); floating(15,10.1f); check(!reset.accept(p,2.1));
+    put(7,2); put(23,2); floating(15,.1f); check(reset.accept(p,2.2));
+    // Same-session restart: time can rewind but overall frame ordering remains.
+    reset.clear(); put(23,1); check(!reset.accept(p,2.3));
+    put(23,3); floating(15,0); check(reset.accept(p,2.4));
+    // An old player cannot bypass ordering by changing the index.
+    p[27]=4; put(23,4); floating(15,.1f); check(reset.accept(p,2.5));
+    p[27]=3; put(23,3); check(!reset.accept(p,2.6));
+    // Invalid values from a current packet break the next segment.
+    p[27]=4; put(23,5); floating(15,.2f);
+    floating(29+4*60+2,std::numeric_limits<float>::quiet_NaN());
+    check(!reset.accept(p,2.7)); check(reset.trace.state()==State::unavailable);
+    floating(29+4*60+2,.5f); put(23,6); floating(15,.3f);
+    check(reset.accept(p,2.8)); check(!reset.trace.latest()->connected);
+    // Counter wrap is forward progress.
+    Feed wrap; put(7,3); put(23,0xffffffffu); check(wrap.accept(p,3));
+    put(23,0); floating(15,.4f); check(wrap.accept(p,3.1));
     std::cout<<"UDP decoding and source lifecycle checks passed\n";
 }

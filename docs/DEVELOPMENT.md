@@ -18,7 +18,7 @@ Native code is in src/swofty/plugin.cpp; addon/swofty.json is the package manife
 8. Record results and limitations in SOURCES.md before implementing the full graph.
 
 The documented upstream sample uses C++ and a Zig cross-compile to a Windows DLL.
-That is a candidate build route, not a project build environment already installed or verified.
+The native build uses Zig 0.14.1; it has been cross-compiled here.
 Prefer the smallest reproducible toolchain supported by the pinned SDK.
 
 ## Planned layout after the spike
@@ -56,3 +56,5 @@ Never report a successful build as proof that the addon loads or that pedal trac
 ## Implemented adapter decision
 
 The pinned telemetry implementation exposes cached car values and a flow-driven clock, without per-input packet freshness. The addon therefore decodes EA 2025 UDP datagrams itself. Receipt and overall frame IDs establish freshness; header session timestamps provide plot time. Rendering and ingestion have one render-thread owner; settings and lifecycle notifications use atomic values. The socket is nonblocking with a 128-datagram per-frame budget. Socket and SDK callback lifetime follows the game process; changing enabled addons requires a game restart.
+
+Current package outputs include both ZIP and `.swoftyaddon` archives. See CONFORMANCE.md for the reference review and queue recovery contract.

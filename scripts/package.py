@@ -1,6 +1,8 @@
 """Validate and produce a Swofty-importable addon ZIP from a native build."""
 import hashlib
 import json
+import math
+import shutil
 import struct
 import zipfile
 from pathlib import Path
@@ -14,7 +16,9 @@ assert len({o['id'] for o in manifest['options']}) == len(manifest['options'])
 for option in manifest['options']:
     if option['type'] == 'slider':
         lo, hi, step = option['min'], option['max'], option['step']
+        assert all(math.isfinite(v) for v in (lo, hi, step, option["default"]))
         assert step > 0 and hi > lo
+        assert abs((hi-lo)/step - round((hi-lo)/step)) < 1e-8
         assert (hi-lo)/step <= 100, f"{option['id']}: more than 100 steps"
         assert lo <= option['default'] <= hi
         assert abs((option['default']-lo)/step - round((option['default']-lo)/step)) < 1e-8
@@ -46,3 +50,7 @@ with zipfile.ZipFile(out) as archive:
     for operation in manifest['operations']['native']:
         assert archive.read(operation['dll']) == binary
 print(f'{out}\nSHA256 {hashlib.sha256(out.read_bytes()).hexdigest()}')
+
+addon_out = out.with_suffix(".swoftyaddon")
+shutil.copyfile(out, addon_out)
+print(addon_out)

@@ -3,7 +3,7 @@
 This is an experimental Windows x64 build. It is packaged for Swofty import, but has not been loaded in a real F1 25 session here.
 
 1. Close F1 25. Use a current Swofty Launcher (the overlay feature requires at least 1.3.7).
-2. Drag `F125-Input-Overlay-0.1.3.zip` onto the launcher window. It is an **addon**, with `swofty.json` at the archive root; leave it zipped.
+2. Install the `.swoftyaddon` from the Addons page, or drag `F125-Input-Overlay-0.1.4.swoftyaddon` onto the launcher window. It is an **addon**, with `swofty.json` at the archive root; leave it archived.
 3. Enable **F1 25 Input Overlay** in your offline profile, then launch the game through Swofty.
 4. In F1 25's Telemetry Settings, set:
 
@@ -37,3 +37,5 @@ Pending on a Windows gaming PC: actual Swofty import, load, live display, pause/
 ## Position and size settings (0.1.3)
 
 Open ADDON SETTINGS → F1 25 Input Overlay. Width and Height resize the panel. Corner picks the starting corner. Horizontal and Vertical position move inward from that corner: 0% stays at the corner, 50% centres that axis, 100% reaches the opposite edge. The full panel stays inside the screen. Values use native profile settings and survive a normal restart. Mouse dragging is not implemented.
+
+The addon ID is `l0g4nn.input-overlay`. Remove previous installations with a different ID before importing, then reapply settings. After reset, resume, a render gap over 500 ms, or a full receive budget, queued packets are discarded until the socket is empty. The next receive cycle resumes with a broken trace segment. This can briefly show waiting.

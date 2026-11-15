@@ -27,12 +27,12 @@ The native telemetry read belongs on the supported flow thread; rendering belong
 Do not share a mutable ring buffer or settings object between them.
 Choose a bounded snapshot handoff with explicit ownership and lifetime during implementation.
 Do not assume a two-buffer swap prevents races while the renderer is still reading.
-No file/network I/O, blocking waits or unbounded allocation in callbacks.
+No blocking waits, file I/O or unbounded allocation in callbacks. The implemented adapter permits bounded nonblocking loopback receives on the render owner.
 
 ## History and plot mathematics
 
 Use timestamped samples, not a fixed number of rendered frames.
-Proposed storage budget: 8,192 samples, a maximum history of 15 seconds and an ingest ceiling of 240 samples/s.
+Proposed storage budget: 8,192 samples, a maximum history of 15 seconds ; there is no explicit ingest rate limit.
 If downsampling is needed, preserve extrema or document the resulting limit; do not silently erase short braking spikes.
 Evict by age and capacity, and break segments at source gaps.
 
@@ -66,8 +66,14 @@ Repeated errors are rate-limited in logs. No per-frame logs in ordinary operatio
 Prefer supported native telemetry and overlay APIs. Pin an upstream commit before copying any headers and retain required notices.
 Do not copy memory offsets or create signature hooks as an unreviewed fallback.
 If field freshness cannot be established natively, assess EA's UDP output as a separate adapter before changing the design.
-No hand-written UDP decoder or external overlay is included in this documentation milestone.
+The current adapter uses a documented EA UDP decoder and Swofty drawing, without an external renderer.
 
 ## 0.1.0 implementation
 
 The first native build uses a render-thread-owned UDP receiver and trace instead of native cached telemetry. No history is shared across threads. Only atomic settings and lifecycle flags cross threads. This supersedes the preliminary flow-thread sampling/snapshot proposal above. Silent data loss is marked unavailable; source timestamps reset on rewind, and session events clear history.
+
+## Receiver recovery
+
+Feed.clear clears display history while retaining source identity and overall-frame ordering. A changed session retires its predecessor; player changes are checked against session frame ordering first. Invalid pedals in a current telemetry packet advance ordering and mark unavailable.
+
+ReceiveGate discards the socket queue after initial open, reset, pause/resume, render gaps over 500 ms and budget exhaustion. Discarding stays bounded at 128 datagrams per paint and continues until WSAEWOULDBLOCK. Later paints accept new arrivals. UDP has no authenticated send timestamp: this protects against local receive backlog, not arbitrary upstream delays or a malicious local sender.

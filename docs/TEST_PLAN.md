@@ -53,3 +53,7 @@ Record missing matrix coverage as unsupported or untested.
 ## 0.1.0 package evidence
 
 Zig 0.14.1 successfully cross-compiled the Windows AMD64 DLL. PE inspection confirms SwoftyAddonApi and SwoftyAddonInit exports and system DLL imports only. Added synthetic EA UDP packet checks for size/version/format/player validation, values, missing data, duplicates, ordering, flashback and session resets. Archive CRC and manifest DLL path checks pass. Actual launcher validation/import and in-game display remain pending; no Wine or Windows game runtime is available here.
+
+## 0.1.4 regression coverage
+
+Automated cases cover explicit resets followed by late old-session packets, same-UID restart/rewind, reordered player changes, invalid pedal gaps and frame wrap. Portable receiver-gate tests cover render stalls, initial open, session reset, pause/resume and budget exhaustion until an empty queue. Actual Winsock receive scheduling and live game recovery remain manual checks. Sanitizer tests, Windows compilation and archive validation do not replace the documented Swofty install/build/run/log checks.
