@@ -48,5 +48,30 @@ int main() {
     // Counter wrap is forward progress.
     Feed wrap; put(7,3); put(23,0xffffffffu); check(wrap.accept(p,3));
     put(23,0); floating(15,.4f); check(wrap.accept(p,3.1));
+    // Malformed other-session packets must not retire the active session.
+    Feed safe; p[27]=3; put(7,42); put(23,100); floating(15,1);
+    check(safe.accept(p,1));
+    put(7,99); put(23,1); floating(29+3*60+2,std::numeric_limits<float>::quiet_NaN());
+    check(!safe.accept(p,1.1)); check(safe.trace.state()==State::live);
+    put(7,42); put(23,101); floating(15,1.1f); floating(29+3*60+2,.5f);
+    check(safe.accept(p,1.2)); check(safe.trace.latest()->connected);
+    // A far-forward invalid frame must not poison ordering; break the segment.
+    put(23,0x40000000u); floating(29+3*60+10,2.f);
+    check(!safe.accept(p,1.3)); check(safe.trace.state()==State::unavailable);
+    put(23,102); floating(15,1.2f); floating(29+3*60+10,.25f);
+    check(safe.accept(p,1.4)); check(!safe.trace.latest()->connected);
+    // Invalid old or other-player packets must leave live state intact.
+    put(23,101); floating(29+3*60+2,-1.f); check(!safe.accept(p,1.5));
+    check(safe.trace.state()==State::live);
+    p[27]=4; put(23,103); floating(29+4*60+2,std::numeric_limits<float>::infinity());
+    check(!safe.accept(p,1.6)); check(safe.trace.state()==State::live);
+    p[27]=3; floating(29+3*60+2,.5f); floating(15,1.3f);
+    check(safe.accept(p,1.7)); check(safe.trace.latest()->connected);
+    // Paused input must not change the tracked session or resume the trace.
+    safe.trace.pause(); put(7,99); put(23,500); check(!safe.accept(p,1.8));
+    check(safe.trace.state()==State::paused);
+    safe.trace.resume(); put(7,42); put(23,104); floating(15,1.4f);
+    check(safe.accept(p,1.9));
+    safe.clear(); put(23,105); floating(15,1.5f); check(safe.accept(p,2));
     std::cout<<"UDP decoding and source lifecycle checks passed\n";
 }

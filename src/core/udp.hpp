@@ -25,12 +25,15 @@ inline bool decode_header(std::span<const unsigned char> p, Pedals& out) {
          u32(p.data()+23), p[27], t, 0, 0};
     return true;
 }
-inline bool decode(std::span<const unsigned char> p, Pedals& out) {
-    if(!decode_header(p,out)) return false;
+// Header validation guarantees the stride and offsets used here.
+inline bool decode_pedals(std::span<const unsigned char> p, Pedals& out) {
     const auto* car=p.data()+29+60*out.player;
     out.throttle=f32(car+2); out.brake=f32(car+10);
     return std::isfinite(out.throttle) && std::isfinite(out.brake) &&
            out.throttle>=0 && out.throttle<=1 && out.brake>=0 && out.brake<=1;
+}
+inline bool decode(std::span<const unsigned char> p, Pedals& out) {
+    return decode_header(p,out) && decode_pedals(p,out);
 }
 class Feed {
 public:
@@ -38,6 +41,15 @@ public:
     bool accept(std::span<const unsigned char> bytes, double wall) {
         Pedals next{};
         if(!decode_header(bytes,next) || !std::isfinite(wall)) return false;
+        if(trace.state()==State::paused) return false;
+        // Validate once, before committing any identity or ordering state.
+        // Only a newer packet for the established player can signal a gap.
+        if(!decode_pedals(bytes,next)) {
+            if(have_ && next.session==session_ && next.player==player_ &&
+               next.frame!=frame_ && std::uint32_t(next.frame-frame_)<0x80000000u)
+                trace.unavailable();
+            return false;
+        }
         for(auto old:retired_) if(old && old==next.session) return false;
         if(have_ && next.session==session_ &&
            (next.frame==frame_ || std::uint32_t(next.frame-frame_)>=0x80000000u)) return false;
@@ -48,8 +60,6 @@ public:
         // Overall frame counter does not rewind during flashbacks. Drop old or
         // duplicate datagrams; unsigned arithmetic also handles counter wrap.
         session_=next.session; player_=next.player; frame_=next.frame; have_=true;
-        if(trace.state()==State::paused) return false;
-        if(!decode(bytes,next)) { trace.unavailable(); return false; }
         if(have_ && wall-last_>.5) trace.unavailable();
         if(trace.append(next.time,next.throttle,next.brake)) { last_=wall; return true; }
         return false;
