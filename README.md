@@ -2,7 +2,7 @@
 
 A planned Swofty Launcher addon for F1 25 that displays a scrolling throttle and brake trace, inspired by the input overlays used in sim racing.
 
-**Status: experimental 0.1.0 import package built. Native Windows overlay and UDP input adapter implemented; actual Swofty import and in-game validation remain pending.**
+**Status: experimental 0.1.3 import package built. Native Windows overlay and UDP input adapter implemented; actual Swofty import and in-game validation remain pending.**
 
 See [installation and telemetry settings](docs/INSTALL.md). The ZIP contains a compiled DLL; the GitHub source ZIP is not the install package.
 
@@ -53,3 +53,5 @@ There are no automated GitHub Actions workflows yet. Add focused checks when the
 
 Private project maintained by L0G4NN. Original project material is reserved under [LICENSE](LICENSE).
 No game assets or upstream SDK files are included. This project is not affiliated with EA, Codemasters, Formula 1, iRacing or Swofty.
+
+Position and size are adjustable through ADDON SETTINGS: Width, Height, Corner, Horizontal position and Vertical position. See docs/INSTALL.md for the percentage-based placement controls.

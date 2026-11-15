@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <swofty_api.h>
 #include "core/udp.hpp"
+#include "core/layout.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
@@ -11,7 +12,7 @@
 namespace {
 const SwoftyApi* api{};
 std::atomic<bool> enabled{true}, bars{true}, paused{false}, reset_requested{false};
-std::atomic<int> history{5}, width{420}, height{160}, opacity{25}, anchor{0};
+std::atomic<int> history{5}, width{420}, height{160}, opacity{25}, anchor{0}, horizontal{0}, vertical{0};
 SOCKET sock=INVALID_SOCKET;
 input_trace::Feed feed;
 bool attempted{}, socket_error{}, was_enabled=true;
@@ -27,6 +28,8 @@ void settings(const char* id,const SwoftySettingValue* v,void*) {
         if(std::strcmp(id,"height")==0) height=value(120,360);
         if(std::strcmp(id,"opacity")==0) opacity=value(0,100);
         if(std::strcmp(id,"anchor")==0) anchor=value(0,3);
+        if(std::strcmp(id,"horizontal")==0) horizontal=value(0,100);
+        if(std::strcmp(id,"vertical")==0) vertical=value(0,100);
     }
 }
 void reset_event(const SwoftyEvent*,void*) { reset_requested=true; paused=false; }
@@ -76,11 +79,8 @@ void paint(SwoftyPaint* p,void*) {
     feed.tick(now);
     float sw=0,sh=0; auto ov=api->overlay; ov->size(p,&sw,&sh);
     if(sw<1 || sh<1) return;
-    const float scale=std::min(sw/1920,sh/1080);
-    const float w=std::min(float(width.load())*scale,sw), h=std::min(float(height.load())*scale,sh);
-    float margin=std::min(24*scale,std::min((sw-w)/2,(sh-h)/2));
-    const int corner=anchor.load();
-    const float x=(corner%2)?sw-w-margin:margin, y=(corner>=2)?margin:sh-h-margin;
+    const auto panel=input_trace::layout(sw,sh,width.load(),height.load(),anchor.load(),horizontal.load(),vertical.load());
+    const float x=panel.x,y=panel.y,w=panel.w,h=panel.h,scale=panel.scale;
     ov->rect(p,x,y,w,h,std::uint32_t(opacity.load()*255/100));
     const float gx=x+36*scale, gy=y+32*scale, gw=w-100*scale, gh=h-52*scale;
     for(int i=0;i<3;++i) {
@@ -123,7 +123,7 @@ void register_overlay(double,void*) {
     }
 }
 void start() {
-    const char* names[]={"enabled","bars","history","width","height","opacity","anchor"};
+    const char* names[]={"enabled","bars","history","width","height","opacity","anchor","horizontal","vertical"};
     for(auto id:names) {
         const unsigned type=(std::strcmp(id,"enabled")==0 || std::strcmp(id,"bars")==0)?SWOFTY_SETTING_TOGGLE:SWOFTY_SETTING_SLIDER;
         SwoftySettingValue v{};
