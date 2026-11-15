@@ -17,6 +17,24 @@ int main() {
     auto bin=r.bin(l,0); check(bin && bin->throttle_min==.1f && bin->throttle_max==1 && bin->brake_max==1,"retain spike and overlap");
     r.accept(meta(2,0,504,5.04f),5.04); check(r.size()==1,"no duplicate completion");
     Plot plot; plot.build(r,0,-1,0,1000); check(plot.series[0][0].valid,"plot data");
+    // Sparse 2 m bins at racing speed still form a connected trace, but a
+    // real telemetry gap cannot be bridged. Storage stays exactly 24 bytes/bin.
+    {
+        Recorder sparse; check(sparse.initialize(),"sparse init"); sparse.accept(session(),0);
+        pair(sparse,1,0,1,.01f); pair(sparse,1,10,2,.02f,false,.6f,.4f);
+        sparse.gap(); pair(sparse,1,20,3,.03f); pair(sparse,1,30,4,.04f);
+        sparse.accept(meta(2,0,5,.05f),.05);
+        Plot q; q.build(sparse,0,-1,0,100);
+        const unsigned c10=unsigned(10.f/100*Plot::columns),c20=unsigned(20.f/100*Plot::columns),c30=unsigned(30.f/100*Plot::columns);
+        check(q.series[0][c10].previous==0,"sparse samples connect");
+        check(q.series[0][c20].previous==-1,"gap not connected");
+        check(q.series[0][c30].previous==int(c20),"connection resumes after gap");
+        check(q.series[2][0].valid==false,"unselected laps not drawn");
+        q.build(sparse,0,-1,0,16384); // gap folds into one pixel: no through-line
+        check(q.series[0][0].broken,"subpixel discontinuity retained");
+        q.build(sparse,0,-1,10,30);
+        check(q.series[0][0].previous==-1,"zoom edge cannot reference offscreen data");
+    }
     // Garage gating expires and is never inferred from silence.
     r.accept(meta(2,10,505,5.05f,0),5.05); check(r.garage(5.1),"fresh garage"); check(!r.garage(6),"stale garage");
     // Exact-frame pairing only; unmatched and delayed values never inherit cached distance.

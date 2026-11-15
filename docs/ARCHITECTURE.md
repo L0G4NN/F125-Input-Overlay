@@ -82,10 +82,16 @@ ReceiveGate discards the socket queue after initial open, reset, pause/resume, r
 
 The single render owner also ingests validated session/lap metadata, pairs it with same-frame pedals, and updates one 2 m envelope bin. Recording uses a startup-allocated fixed pool; completed laps transfer slot ownership with no whole-lap copies or clears. Stamps invalidate reused bins. At the 128-trace cap, subsequent completed laps are metadata-only.
 
-The F8 panel queries v3 input only in a fresh garage/verified pause and releases focus on close/state loss. The game pause state is never changed. The renderer aggregates only selected X/Y laps into fixed 512-column caches; no plot rebuilding or review drawing occurs while closed. All callback-crossing lifecycle/settings signals remain atomic. See LAP_REVIEW.md and REVIEW_VALIDATION.md for exact storage, pairing, rewind and validation limits.
+The F8 panel queries v3 input only in a fresh garage while unpaused and releases focus on close/state loss. The game pause state is never changed. The renderer aggregates only selected X/Y laps into fixed 192-column caches; no plot rebuilding or review drawing occurs while closed. All callback-crossing lifecycle/settings signals remain atomic. See LAP_REVIEW.md and REVIEW_VALIDATION.md for exact storage, pairing, rewind and validation limits.
 
 ## Game-menu visibility and input handoff (0.2.1)
 
 Fresh session/lap visibility tracking is independent of the optional trace pool. The decoder can update garage/on-track status without allocation; recording and pairing still require a successfully initialized pool. The default live HUD gate is fresh non-garage metadata AND not paused. Stale/unknown contexts produce no live primitives. A native toggle restores legacy visibility only for troubleshooting.
 
 The review panel has no text fields or controller navigation. If it owns focus, typed characters, non-review keys, XInput button edges or active axes/triggers close it. It never replays captured input, captures while closed, or releases another addon's focus intentionally. This supplements existing close/Escape/state-loss paths. No exact game text-entry dialog query is exposed in the pinned public API; no private font/input hooks are added.
+
+## 0.2.2 behaviour update
+
+Interactive F8 review is now **garage-only and unpaused**, superseding earlier paused-review descriptions. Any pause closes it, even with fresh garage metadata; held keyboard/controller controls prevent focus acquisition. Test entering flashback with throttle held/released, both with review closed and after leaving the garage review, on keyboard, controller and wheel. Compare addon-disabled and Swofty-core-only runs if the fault persists: the addon never writes throttle or injects controls, and no exact replay/flashback query is available in the pinned public API. This is an input-capture mitigation, not a confirmed game-level fix.
+
+Lap rows use separate timing and quality lines. X (cyan) and Y (amber) use separate lanes by default; “View: overlay” puts them on shared pedal axes. Connected upper-envelope lines plus min/max markers replace isolated dots. A connection requires a recorded predecessor link, including sparse bins at racing speed; gaps remain disconnected and no smoothing is applied. Zoom to inspect detail. The bin pool remains 24.2 MiB; four 192-column caches and at most 1,536 trace-line calls bound open-menu work independently of lap count.

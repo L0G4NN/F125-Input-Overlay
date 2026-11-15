@@ -5,6 +5,11 @@
 using namespace fixture;
 using namespace input_trace;
 int main() {
+    assert(review_interactive(false,true));
+    assert(!review_interactive(false,false));
+    assert(!review_interactive(true,false)); // replay/flashback pause is not a review context
+    assert(!review_interactive(true,true));  // even with fresh old garage metadata
+
     assert(!show_live_hud(true,false,false)); // no metadata: no menu obstruction
     assert(!show_live_hud(true,true,true));   // pause hides even if driving metadata was fresh
     assert(show_live_hud(true,false,true));

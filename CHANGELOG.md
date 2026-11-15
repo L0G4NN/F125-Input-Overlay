@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2 — Review readability and flashback input mitigation
+
+- Use compact two-line lap rows so quality labels cannot overlap selection buttons.
+- Default to separate X/Y lanes per pedal, with an optional overlay view and distinct cyan/amber lap colours.
+- Draw connected envelope traces using verified sample links, preserving extrema and real gaps. Keep the 24-byte bins and fixed 24.2 MiB pool; bound rendering to 192 columns per series.
+- Restrict interactive review to fresh garage metadata while unpaused. Close on every pause, including potential replay/flashback, and refuse focus with other held controls. Also release focus when the drawable viewport disappears.
+- This removes a risky capture path, but does not establish the reported stuck-throttle root cause. Actual game input and visual verification remain required.
+
 ## 0.2.1 — Setup naming visibility mitigation
 
 - Hide the live HUD in garage, paused and stale/unknown contexts by default, keeping overlay drawing off game menus.
