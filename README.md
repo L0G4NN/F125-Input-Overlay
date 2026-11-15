@@ -2,7 +2,7 @@
 
 A Swofty Launcher addon for F1 25 that displays a scrolling throttle and brake trace, inspired by the input overlays used in sim racing.
 
-**Status: experimental 0.2.2 under development. Native Windows overlay, bounded lap recorder and F8 review panel implemented; actual Swofty import and in-game validation remain pending.**
+**Status: experimental 0.3.0 under development. Native Windows overlay, bounded lap recorder and F8 review panel implemented; actual Swofty import and in-game validation remain pending.**
 
 See [installation and telemetry settings](docs/INSTALL.md). The ZIP contains a compiled DLL; the GitHub source ZIP is not the install package.
 
@@ -64,3 +64,5 @@ F8 opens session lap review in the garage while the game is not paused on cores 
 The live HUD is hidden in garage/paused/unknown contexts by default to avoid covering game-menu text. See [issue #8 validation](docs/SETUP_NAMING.md) for the mitigation, troubleshooting override and remaining in-game check.
 
 Review closes on any pause (including replay/flashback) and refuses focus while keyboard/controller controls are held. The reported stuck-throttle behaviour still requires in-game verification; this addon does not write vehicle inputs.
+
+F8 also includes Speed/Gear, ERS, per-wheel Slip and Aero Height pages, with dashed S2/S3 boundaries. The live HUD shows the reported front-wheel steering angle in degrees. Extended recording uses a fixed 52.4 MiB pool; see [extended telemetry](docs/EXTENDED_TELEMETRY.md) for units, 16 m resolution and validation limits.

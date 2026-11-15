@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 — Extended telemetry graphs
+
+- Add dashed S2/S3 markers from validated session distances on every review page.
+- Add speed/gear, instantaneous MGU-K power/cumulative energy, per-wheel slip ratio/angle and front/rear plank-height pages with shared X/Y selection and zoom.
+- Add a fresh front-wheel steering angle in degrees to the live HUD; preserve unavailable states.
+- Keep added channels in fixed 16 m extrema bins with independent exact-frame pairing. Total pool is 52.4 MiB for 128 detailed laps; only the selected page renders.
+- Preserve raw slip-angle/plank-height values because their units are not explicit in the pinned field descriptions. No in-game validation claim.
+- Add decoder, pairing, bounds, geometry, fuzz and allocation checks; retain garage-only focus safeguards.
+
 ## 0.2.2 — Review readability and flashback input mitigation
 
 - Use compact two-line lap rows so quality labels cannot overlap selection buttons.

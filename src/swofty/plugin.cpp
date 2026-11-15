@@ -119,7 +119,7 @@ void paint(SwoftyPaint* p,void*) {
     const auto panel=input_trace::layout(sw,sh,width.load(),height.load(),anchor.load(),horizontal.load(),vertical.load());
     const float x=panel.x,y=panel.y,w=panel.w,h=panel.h,scale=panel.scale;
     ov->rect(p,x,y,w,h,std::uint32_t(opacity.load()*255/100));
-    const float gx=x+36*scale, gy=y+32*scale, gw=w-100*scale, gh=h-52*scale;
+    const float gx=x+36*scale, gy=y+48*scale, gw=w-100*scale, gh=h-68*scale;
     for(int i=0;i<3;++i) {
         float yy=gy+gh*i/2;
         ov->line(p,gx,yy,gx+gw,yy,scale,0xffffff30);
@@ -130,6 +130,11 @@ void paint(SwoftyPaint* p,void*) {
         is_paused?"Paused":feed.trace.state()==input_trace::State::live?"Throttle / Brake":
         "Waiting for UDP 2025 :20777";
     ov->text(p,x+8*scale,y+6*scale,14*scale,0xffffffff,status);
+    float steering_angle=0;char steering_text[80];
+    if(!is_paused && recorder.steering(now,steering_angle))
+        std::snprintf(steering_text,sizeof steering_text,"Front-wheel angle: %+.1f deg",steering_angle);
+    else std::snprintf(steering_text,sizeof steering_text,"Front-wheel angle: --");
+    ov->text(p,x+8*scale,y+24*scale,12*scale,0xb7dfffff,steering_text);
     for(std::size_t i=1;i<feed.trace.size();++i) {
         if(!feed.trace[i].connected) continue;
         for(bool brake:{false,true}) {

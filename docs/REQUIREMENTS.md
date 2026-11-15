@@ -63,3 +63,7 @@ Native settings include 0–100% horizontal/vertical travel from the chosen corn
 ## Planned lap review extension
 
 The F8 full-session lap browser and X/Y distance comparison are specified in [LAP_REVIEW.md](LAP_REVIEW.md). This extends the original deferred lap recording/comparison scope. The experimental 0.2.0 build implements the first iteration with a recording toggle and F6–F12 review key setting. Actual game acceptance remains pending.
+
+## Extended telemetry in 0.3.0
+
+See [EXTENDED_TELEMETRY.md](EXTENDED_TELEMETRY.md) for the implemented sector markers, five F8 pages, per-wheel selector, front-wheel steering readout, verified EA offsets and unit limitations. The new total fixed pool is 52.4 MiB, superseding earlier pedal-only 24.2 MiB totals. Pedals retain 2 m bins; extra channels use 16 m extrema bins. Rendering is four 176-column arrays for the selected page only. Existing garage-only/unpaused focus safeguards and socket bounds remain in force. Game validation remains pending.

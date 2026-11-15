@@ -18,16 +18,16 @@ int main() {
         Recorder r;if(!r.initialize())return 1;r.accept(session(),0);
         unsigned frame=1;float time=0;
         for(unsigned l=1;l<=completed+1;++l)pair(r,l,0,frame++,time+=.02f);
-        auto m=meta(completed+1,10,frame,time),p=pedals(frame,time);
+        auto m=meta(completed+1,10,frame,time),p=pedals(frame,time),motion=motion_extra(frame,time),status=car_status(frame,time);
         auto before=allocations;auto start=Clock::now();
         constexpr unsigned iterations=300000;
-        for(unsigned i=0;i<iterations;++i){++frame;time+=.016f;put(m,23,frame);put(p,23,frame);fp(m,15,time);fp(p,15,time);r.accept(m,time);r.accept(p,time);}
+        for(unsigned i=0;i<iterations;++i){++frame;time+=.016f;put(m,23,frame);put(p,23,frame);fp(m,15,time);fp(p,15,time);put(motion,23,frame);fp(motion,15,time);put(status,23,frame);fp(status,15,time);r.accept(m,time);r.accept(p,time);r.accept(motion,time);r.accept(status,time);}
         auto elapsed=std::chrono::duration<double,std::micro>(Clock::now()-start).count()/iterations;
         auto growth=allocations-before;
-        std::cout<<completed<<" completed laps: pair ingest "<<elapsed<<" us, allocations="<<growth<<" bytes reserved="<<Recorder::storage_bytes()+sizeof r<<'\n';
+        std::cout<<completed<<" completed laps: four-packet ingest "<<elapsed<<" us, allocations="<<growth<<" bytes reserved="<<Recorder::storage_bytes()+sizeof r<<'\n';
         if(growth)return 2;
         Plot plot;before=allocations;start=Clock::now();
-        for(unsigned i=0;i<1000;++i){plot.build(r,r.size()?0:-1,r.size()>1?1:-1,0,1000);sink=plot.series[0][0].hi;}
+        for(unsigned i=0;i<1000;++i){plot.build(r,r.size()?0:-1,r.size()>1?1:-1,0,1000,4,8);sink=plot.series[0][0].hi;}
         std::cout<<"  selection rebuild "<<std::chrono::duration<double,std::micro>(Clock::now()-start).count()/1000<<" us, allocations="<<allocations-before<<'\n';
         if(allocations!=before)return 3;
     }

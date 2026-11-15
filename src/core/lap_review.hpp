@@ -1,5 +1,6 @@
 #pragma once
 #include "udp.hpp"
+#include "extended.hpp"
 #include <algorithm>
 #include <memory>
 #include <new>
@@ -30,13 +31,13 @@ class Recorder {
     struct Pool { Bin bins[trace_limit+1][bins_per_lap]{}; };
     struct Pair { Meta meta{}; Pedals pedals{}; double mw{}, pw{}; bool m{}, p{}; };
 public:
-    bool initialize() { if(!pool_) pool_.reset(new(std::nothrow) Pool); return bool(pool_); }
+    bool initialize() { if(!pool_) pool_.reset(new(std::nothrow) Pool); return bool(pool_) && extras_.initialize(); }
     void reset() {
         count_=stored_=0; active_=false; session_=false; garage_=false; lap_seen_=false; rewound_=false; finished_=false;
-        pairs_={}; seen_={}; broken_=true; have_sample_=false; ++generation_; // pool stamps are never reused
+        extras_.gap(); sectors_={}; pairs_={}; seen_={}; broken_=true; have_sample_=false; ++generation_; // pool stamps are never reused
     }
-    void gap() { broken_=true; if(active_) current_.partial=true; pairs_={}; }
-    void set_recording(bool on) { if(recording_!=on) { recording_=on; active_=false; pairs_={}; } }
+    void gap() { extras_.gap(); broken_=true; if(active_) current_.partial=true; pairs_={}; }
+    void set_recording(bool on) { if(recording_!=on) { recording_=on; active_=false; pairs_={}; extras_.gap(); } }
     std::size_t size() const { return count_; }
     const Lap& lap(std::size_t i) const { return laps_[i]; }
     const Bin* bin(const Lap& l,std::size_t i) const {
@@ -53,7 +54,12 @@ public:
     bool garage(double now) const { return fresh_lap(now) && garage_; }
     bool on_track(double now) const { return fresh_lap(now) && !garage_; }
     bool metadata_limit() const { return count_==lap_limit; }
-    static constexpr std::size_t storage_bytes() { return sizeof(Pool); }
+    static constexpr std::size_t storage_bytes() { return sizeof(Pool)+ExtraStore::storage_bytes(); }
+    float sector(unsigned i) const { return i<2?sectors_[i]:0; }
+    bool steering(double now,float& degrees) const { return extras_.steering(now,degrees); }
+    const ExtraBin* extra(const Lap& lap,unsigned channel,unsigned index) const {
+        return lap.limited?nullptr:extras_.bin(lap.slot,lap.stamp,channel,index);
+    }
     // Fully validate each packet before committing identity, ordering or lap state.
     void accept(std::span<const unsigned char> p,double wall) {
         if(!std::isfinite(wall) || p.size()<29) return;
@@ -69,6 +75,9 @@ public:
                 reset();
             }
             if(!session_) { uid_=h.session; player_=h.player; track_=p[36]; length_=float(len); session_=true; }
+            float s2=f32(p.data()+745),s3=f32(p.data()+749);
+            sectors_={};
+            if(std::isfinite(s2) && std::isfinite(s3) && s2>0 && s3>s2 && s3<len) sectors_={s2,s3};
             remember(0,h); return;
         }
         if(p[6]==8) {
@@ -81,7 +90,7 @@ public:
             if(active_ && c[1]==current_.number) { finish(0); active_=false; }
             finished_=true; return;
         }
-        Meta m{};
+        Meta m{}; ExtraPacket extended{}; bool have_extra=false;
         if(p[6]==2) {
             if(!decode_common(p,h,2,1285)) return;
             const auto* c=p.data()+29+57*h.player;
@@ -94,7 +103,10 @@ public:
                 if(session_ && h.session==uid_ && h.player==player_ && newer(2,h.frame)) gap();
                 return;
             }
-            stream=2;
+            stream=2; have_extra=decode_extra(p,extended);
+        } else if(p[6]==7 || p[6]==13) {
+            if(!decode_extra(p,extended)) return;
+            h=extended.h;stream=p[6]==7?4:5;have_extra=true;
         } else return;
         if(!session_ || h.session!=uid_ || h.player!=player_ || !newer(stream,h.frame)) return;
         if(rewound_ && h.frame!=rewind_frame_ && std::uint32_t(h.frame-rewind_frame_)>=0x80000000u) return;
@@ -125,7 +137,11 @@ public:
             }
             current_.invalid|=m.invalid; current_.out|=m.driver==3; current_.in|=m.driver==2;
         }
+        if(have_extra) extras_.packet(extended,wall,recording_ && pool_ && !finished_);
         if(!recording_ || !pool_) return;
+        if(stream==1 && active_ && !current_.limited && m.driver!=0)
+            extras_.metadata(h.frame,current_.slot,current_.stamp,m.distance,length_,h.time,wall);
+        if(stream>2) return;
         // Match exact overall frames regardless of packet arrival order. No cached-distance interpolation.
         auto& pair=pairs_[h.frame%pairs_.size()];
         if((pair.m && pair.meta.h.frame!=h.frame) || (pair.p && pair.pedals.frame!=h.frame)) pair={};
@@ -140,6 +156,7 @@ public:
     }
 private:
     void finish(unsigned ms) {
+        extras_.seal(current_.stamp);
         if(count_==lap_limit) return;
         current_.partial|=!have_sample_ || current_.last<length_-100;
         current_.time_ms=ms; laps_[count_++]=current_;
@@ -172,12 +189,14 @@ private:
         current_.last=m.distance; last_time_=p.time; have_sample_=true; broken_=false;
     }
     std::unique_ptr<Pool> pool_;
+    ExtraStore extras_;
+    std::array<float,2> sectors_{};
     std::array<Lap,lap_limit> laps_{};
     std::array<Pair,8> pairs_{};
     std::array<std::uint64_t,64> retired_{};
-    std::array<std::uint32_t,4> frames_{};
-    std::array<double,4> times_{};
-    std::array<bool,4> seen_{};
+    std::array<std::uint32_t,6> frames_{};
+    std::array<double,6> times_{};
+    std::array<bool,6> seen_{};
     Lap current_{};
     std::size_t count_{}, stored_{}, retire_pos_{};
     std::uint64_t uid_{};
@@ -188,5 +207,5 @@ private:
     double last_time_{}, lap_wall_{};
     bool active_{}, session_{}, garage_{}, lap_seen_{}, recording_{true}, broken_{true}, have_sample_{};
 };
-static_assert(Recorder::storage_bytes()+sizeof(Recorder)<32u*1024*1024);
+static_assert(Recorder::storage_bytes()+sizeof(Recorder)<64u*1024*1024);
 }
