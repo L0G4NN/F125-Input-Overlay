@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "l0g4nn.input-overlay",
   "name": "F1 25 Input Overlay",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "L0G4NN",
   "description": "Throttle and brake history. Enable UDP 2025 to 127.0.0.1:20777. Experimental first build.",
   "kind": [
@@ -15,7 +15,7 @@
   "requires": [
     {
       "id": "swofty.core",
-      "version": ">=0.1.0"
+      "version": ">=0.1.1"
     }
   ],
   "experimental_features": [

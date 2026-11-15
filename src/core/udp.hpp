@@ -33,6 +33,8 @@ public:
     bool accept(std::span<const unsigned char> bytes, double wall) {
         Pedals next{};
         if(!decode(bytes,next)) return false;
+        for(auto old:retired_) if(old && old==next.session) return false;
+        if(have_ && next.session!=session_) { retired_[retired_pos_++ % retired_.size()]=session_; }
         if(!have_ || next.session!=session_ || next.player!=player_) {
             trace.clear(); have_=false;
         }
@@ -41,12 +43,15 @@ public:
         if(have_ && (next.frame==frame_ || std::uint32_t(next.frame-frame_)>=0x80000000u)) return false;
         session_=next.session; player_=next.player; frame_=next.frame; have_=true;
         if(trace.state()==State::paused) return false;
+        if(have_ && wall-last_>.5) trace.unavailable();
         if(trace.append(next.time,next.throttle,next.brake)) { last_=wall; return true; }
         return false;
     }
     void tick(double wall) { if(have_ && trace.state()!=State::paused && wall-last_>.5) trace.unavailable(); }
     void clear() { trace.clear(); have_=false; }
 private:
+    std::array<std::uint64_t,64> retired_{};
+    std::size_t retired_pos_{};
     bool have_{};
     std::uint64_t session_{};
     unsigned player_{};

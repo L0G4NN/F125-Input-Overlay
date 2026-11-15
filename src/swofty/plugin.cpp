@@ -52,9 +52,13 @@ void open_socket() {
     }
 }
 void paint(SwoftyPaint* p,void*) {
-    if(!attempted) open_socket();
     if(reset_requested.exchange(false)) feed.clear();
     bool on=enabled.load();
+    if(!on) {
+        if(sock!=INVALID_SOCKET) { closesocket(sock); sock=INVALID_SOCKET; WSACleanup(); }
+        attempted=false; socket_error=false; feed.clear(); was_enabled=false; return;
+    }
+    if(!attempted) open_socket();
     if(on!=was_enabled) {feed.clear(); was_enabled=on;}
     feed.trace.set_history(history.load());
     if(paused.load()) feed.trace.pause(); else feed.trace.resume();
@@ -111,6 +115,13 @@ void paint(SwoftyPaint* p,void*) {
         ov->text(p,bx,gy+gh+3*scale,11*scale,colour,label);
     }
 }
+bool registered=false;
+void register_overlay(double,void*) {
+    if(!registered && api->overlay->available()) {
+        registered=api->overlay->on_paint(paint,nullptr,nullptr)==SWOFTY_ASSET_OK;
+        if(registered) api->log("[input-overlay] overlay registered");
+    }
+}
 void start() {
     const char* names[]={"enabled","bars","history","width","height","opacity","anchor"};
     for(auto id:names) {
@@ -125,7 +136,7 @@ void start() {
         api->events->subscribe(SWOFTY_EVENT_PAUSE,pause_event,nullptr,nullptr);
         api->events->subscribe(SWOFTY_EVENT_RESUME,pause_event,nullptr,nullptr);
     }
-    int result=api->overlay->on_paint(paint,nullptr,nullptr);
+    int result=api->events ? api->events->on_frame(register_overlay,nullptr,nullptr) : SWOFTY_ASSET_UNAVAILABLE;
     api->log("[input-overlay] overlay registration %d; enable UDP 2025 to 127.0.0.1:20777",result);
 }
 }

@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 : "${ZIG:=zig}"
-[[ "$($ZIG version)" == "0.14.1" ]] || { echo "Zig 0.14.1 required" >&2; exit 1; }
+[[ "$("$ZIG" version)" == "0.14.1" ]] || { echo "Zig 0.14.1 required" >&2; exit 1; }
 mkdir -p build/native
 "$ZIG" c++ -target x86_64-windows-gnu -std=c++20 -O2 -Wall -Wextra -Werror \
     -Isrc -Ithird_party/swofty -shared -static -s src/swofty/plugin.cpp -lws2_32 \
