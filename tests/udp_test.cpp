@@ -23,6 +23,9 @@ int main() {
     put(23,1); floating(15,1.2f); check(!f.accept(p,10.8)); // old packet
     put(23,3); floating(15,.5f); check(f.accept(p,10.9)); check(f.trace.size()==1); // flashback
     put(7,99); put(23,0); floating(15,0); check(f.accept(p,11)); check(f.trace.size()==1); // new session
+    put(7,42); put(23,10); floating(15,2); check(!f.accept(p,12)); // retired session
+    put(7,99); put(23,2); floating(15,.1f); check(f.accept(p,13));
+    check(!f.trace.latest()->connected); // wall-clock gap
     floating(29+3*60+2,std::numeric_limits<float>::infinity()); check(!decode(p,d));
     std::cout<<"UDP decoding and source lifecycle checks passed\n";
 }
