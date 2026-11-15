@@ -65,7 +65,7 @@ public:
         }
         if(!r.size()) text(20,160,!r.recording()?"Recording disabled.":!r.session_ready()?"Waiting for UDP session metadata.":"No completed laps recorded yet.");
         if(button(600,62,180,"Clear comparison")) { y_=-1; dirty_=true; }
-        if(button(800,104,200,split_?"View: separate":"View: overlay")) split_=!split_;
+        if(button(965,62,200,split_?"View: separate":"View: overlay")) split_=!split_;
         if(button(800,62,140,"Reset view")) { view_begin_=0; view_end_=r.length(); dirty_=true; }
         if(view_end_<=view_begin_ || view_end_>r.length()) { view_begin_=0; view_end_=r.length(); dirty_=true; }
         char selection[160];
@@ -73,7 +73,19 @@ public:
         unsigned yn=y_>=0 && std::size_t(y_)<r.size()?r.lap(std::size_t(y_)).number:0;
         if(yn) std::snprintf(selection,sizeof selection,"X: lap %u   /   Y: lap %u",xn,yn);
         else std::snprintf(selection,sizeof selection,"X: lap %u   /   Y: none",xn);
-        text(1000,68,selection);
+        text(1200,68,selection);
+        const char* pages[]={"Pedals","Speed / Gear","ERS","Wheel slip","Aero height"};
+        for(int i=0;i<5;++i) {
+            char tab[40];std::snprintf(tab,sizeof tab,"%s%s",page_==i?"> ":"",pages[i]);
+            if(button(600+i*230.f,104,220,tab)) {page_=i;dirty_=true;}
+        }
+        if(page_==3 && button(20,770,250,wheel_names_[wheel_])) {wheel_=(wheel_+1)%4;dirty_=true;}
+        int channel0=-1,channel1=-1;
+        const char* title0="THROTTLE (%)",*title1="BRAKE (%)";
+        if(page_==1) {channel0=0;channel1=1;title0="SPEED (km/h)";title1="GEAR (-1 reverse, 0 neutral)";}
+        if(page_==2) {channel0=2;channel1=3;title0="MGU-K POWER (kW)";title1="ENERGY DEPLOYED THIS LAP (MJ)";}
+        if(page_==3) {channel0=4+wheel_;channel1=8+wheel_;title0="WHEEL SLIP RATIO (signed)";title1="WHEEL SLIP ANGLE (raw)";}
+        if(page_==4) {channel0=12;channel1=13;title0="FRONT PLANK HEIGHT (raw)";title1="REAR PLANK HEIGHT (raw)";}
         const float gx=620,gw=1130,gy=170,gh=260,gy2=510;
         bool over=inside(gx,gy,gw,gy2+gh-gy);
         float fraction=std::clamp((mx-gx)/gw,0.f,1.f);
@@ -90,7 +102,7 @@ public:
             view_end_=view_begin_+span; dirty_=true;
         }
         if(dirty_ || cache_x_!=x_ || cache_y_!=y_ || cache_count_!=r.size()) {
-            plot_.build(r,x_,y_,view_begin_,view_end_); dirty_=false;
+            plot_.build(r,x_,y_,view_begin_,view_end_,channel0,channel1); dirty_=false;
             cache_x_=x_; cache_y_=y_; cache_count_=r.size();
         }
         for(unsigned s=0;s<4;++s) {
@@ -99,10 +111,16 @@ public:
             float lane=split_?gh/2-12:gh;
             rect(gx,top,gw,lane,0x080d15ff);
             for(int i=0;i<3;++i) ov->line(paint,ox+gx*scale,oy+(top+i*lane/2)*scale,ox+(gx+gw)*scale,oy+(top+i*lane/2)*scale,scale,0xffffff20);
-            text(gx-30,top,split_?(s<2?"X":"Y"):"%");
+            text(gx-30,top,split_?(s<2?"X":"Y"):(page_==0?"%":""));
         }
-        text(gx,gy-28,"THROTTLE  0-100%"); text(gx,gy2-28,"BRAKE  0-100%");
-        // At most 4 * 192 * 2 lines = 9,216 trace vertices. Same bounded
+        char axis[128];
+        auto norm=[&](float value,unsigned channel) {return std::clamp((value-plot_.low[channel])/(plot_.high[channel]-plot_.low[channel]),0.f,1.f);};
+        for(unsigned c=0;c<2;++c) {
+            float factor=page_==0?100.f:1.f;
+            std::snprintf(axis,sizeof axis,"%s   %.3f to %.3f",c?title1:title0,plot_.low[c]*factor,plot_.high[c]*factor);
+            text(gx,(c?gy2:gy)-28,axis);
+        }
+        // At most 4 * 176 * 2 lines = 8,448 trace vertices. Same bounded
         // pool and no allocation; cache rebuilt only on selection/view changes.
         for(unsigned s=0;s<4;++s) for(unsigned c=0;c<Plot::columns;++c) {
             const auto& v=plot_.series[s][c];
@@ -115,14 +133,27 @@ public:
                 const auto& prev=plot_.series[s][v.previous];
                 if(!prev.broken) {
                     float px=gx+gw*(float(v.previous)+.5f)/Plot::columns;
-                    ov->line(paint,ox+px*scale,oy+(top+lane*(1-prev.last))*scale,
-                             ox+xx*scale,oy+(top+lane*(1-v.first))*scale,2*scale,colour);
+                    ov->line(paint,ox+px*scale,oy+(top+lane*(1-norm(prev.last,s%2)))*scale,
+                             ox+xx*scale,oy+(top+lane*(1-norm(channel1==1 && s%2?prev.last:v.first,s%2)))*scale,2*scale,colour);
                 }
             }
             // Extrema preserve brief pedal spikes; connections follow the upper
             // envelope, with no smoothing or interpolation over an input gap.
-            float y0=top+lane*(1-v.hi), y1=top+lane*(1-v.lo);
+            float lo=v.lo,hi=v.hi;
+            if(channel1==1 && s%2 && v.previous>=0 && !v.broken && !plot_.series[s][v.previous].broken) {
+                lo=std::min(lo,plot_.series[s][v.previous].last);hi=std::max(hi,plot_.series[s][v.previous].last);
+            }
+            float y0=top+lane*(1-norm(hi,s%2)), y1=top+lane*(1-norm(lo,s%2));
             ov->line(paint,ox+xx*scale,oy+y0*scale,ox+xx*scale,oy+std::min(top+lane,y1+1)*scale,2*scale,colour);
+        }
+        // Sector locations come from Session data, never inferred from thirds.
+        for(unsigned sector=0;sector<2;++sector) {
+            float distance=r.sector(sector);
+            if(distance<=0 || distance<view_begin_ || distance>view_end_) continue;
+            float xx=gx+gw*(distance-view_begin_)/(view_end_-view_begin_);
+            for(float top:{gy,gy2}) for(float dy=0;dy<gh;dy+=16)
+                ov->line(paint,ox+xx*scale,oy+(top+dy)*scale,ox+xx*scale,oy+(top+std::min(dy+8,gh))*scale,scale,0xffffff80);
+            text(xx+4,gy+4,sector?"S3":"S2");
         }
         char info[200];
         for(int tick=0;tick<=4;++tick) {
@@ -130,16 +161,26 @@ public:
             std::snprintf(info,sizeof info,"%.0f m",view_begin_+(view_end_-view_begin_)*float(tick)/4);
             ov->text(paint,ox+(xx-(tick==4?65:0))*scale,oy+(gy2+gh+8)*scale,14*scale,0x9eabc0ff,info);
         }
-        std::snprintf(info,sizeof info,"%.0f - %.0f m  |  wheel: zoom  drag: pan  |  2 m min/max bins",view_begin_,view_end_); text(gx,810,info);
+        std::snprintf(info,sizeof info,"%.0f - %.0f m | wheel: zoom  drag: pan | %s",view_begin_,view_end_,page_==0?"2 m bins":"16 m min/max bins"); text(gx,810,info);
         if(over) {
             for(float top:{gy,gy2}) ov->line(paint,ox+(gx+fraction*gw)*scale,oy+top*scale,
                 ox+(gx+fraction*gw)*scale,oy+(top+gh)*scale,scale,0xffffff70);
             float d=view_begin_+fraction*(view_end_-view_begin_);
             auto bi=std::size_t(std::max(0.f,d/2));
             for(int which=0;which<2;++which) {
-                int sel=which?y_:x_; const Bin* b=sel>=0 && std::size_t(sel)<r.size()?r.bin(r.lap(std::size_t(sel)),bi):nullptr;
-                if(b) std::snprintf(info,sizeof info,"%c @ %.0f m: throttle %.0f-%.0f%%   brake %.0f-%.0f%%",which?'Y':'X',d,b->throttle_min*100,b->throttle_max*100,b->brake_min*100,b->brake_max*100);
-                else std::snprintf(info,sizeof info,"%c @ %.0f m: -- (no coverage)",which?'Y':'X',d);
+                int sel=which?y_:x_;
+                if(page_==0) {
+                    const Bin* b=sel>=0 && std::size_t(sel)<r.size()?r.bin(r.lap(std::size_t(sel)),bi):nullptr;
+                    if(b) std::snprintf(info,sizeof info,"%c @ %.0f m: throttle %.0f-%.0f%%  brake %.0f-%.0f%%",which?'Y':'X',d,b->throttle_min*100,b->throttle_max*100,b->brake_min*100,b->brake_max*100);
+                    else std::snprintf(info,sizeof info,"%c @ %.0f m: -- (no coverage)",which?'Y':'X',d);
+                } else {
+                    auto* a=sel>=0 && std::size_t(sel)<r.size()?r.extra(r.lap(std::size_t(sel)),unsigned(channel0),unsigned(d/16)):nullptr;
+                    auto* b=sel>=0 && std::size_t(sel)<r.size()?r.extra(r.lap(std::size_t(sel)),unsigned(channel1),unsigned(d/16)):nullptr;
+                    char av[48]="--",bv[48]="--";
+                    if(a) std::snprintf(av,sizeof av,"%.4f to %.4f",a->lo,a->hi);
+                    if(b) std::snprintf(bv,sizeof bv,"%.4f to %.4f",b->lo,b->hi);
+                    std::snprintf(info,sizeof info,"%c @ %.0f m: upper %s | lower %s",which?'Y':'X',d,av,bv);
+                }
                 text(gx,850+which*28.f,info);
             }
         }
@@ -157,6 +198,8 @@ private:
         return false;
     }
     static bool key(const SwoftyInput& i,int vk) { return vk>0 && vk<256 && (i.keys_pressed[vk/8]&(1u<<(vk%8))); }
+    static constexpr const char* wheel_names_[4]={"Wheel: rear left","Wheel: rear right","Wheel: front left","Wheel: front right"};
+    int page_{},wheel_{};
     Plot plot_{};
     unsigned generation_{};
     std::size_t cache_count_{};

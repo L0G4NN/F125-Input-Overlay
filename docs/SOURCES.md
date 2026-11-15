@@ -52,3 +52,7 @@ Reference documentation rechecked 15 November 2026: see CONFORMANCE.md. The pinn
 Rechecked the official overlay reference (input/focus v3, virtual-key edges, controller limitations) and EA F1 25 UDP v3 PDF. Added decoders for session packet 1 (753 bytes, track length at 33, track ID 36, spectating 44, network-game 154), lap packet 2 (1285 bytes, 22 x 57-byte records from 29; last lap ms +0, distance +20, lap number +33, invalid +37, driver status +44), and final classification packet 8 (1042 bytes, num cars at 29, 22 x 46-byte entries from 30; completed laps +1, result status +5). All are version 1. Pedals remain packet 6.
 
 Runtime input/focus and pause-mask discovery follows the pinned SDK's `swofty/overlay.hpp` and `swofty/view.hpp` core-export feature checks. No SDK file modifications were needed. No tested game/core version is added until runtime testing is performed.
+
+## Extended telemetry in 0.3.0
+
+See [EXTENDED_TELEMETRY.md](EXTENDED_TELEMETRY.md) for the implemented sector markers, five F8 pages, per-wheel selector, front-wheel steering readout, verified EA offsets and unit limitations. The new total fixed pool is 52.4 MiB, superseding earlier pedal-only 24.2 MiB totals. Pedals retain 2 m bins; extra channels use 16 m extrema bins. Rendering is four 176-column arrays for the selected page only. Existing garage-only/unpaused focus safeguards and socket bounds remain in force. Game validation remains pending.

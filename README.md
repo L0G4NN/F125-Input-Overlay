@@ -62,4 +62,8 @@ See [installation, settings and troubleshooting](docs/INSTALL.md), or [report a 
 - [Requirements](docs/REQUIREMENTS.md) · [Architecture](docs/ARCHITECTURE.md) · [Test plan](docs/TEST_PLAN.md)
 - [Sources and compatibility](docs/SOURCES.md) · [Runtime validation notes](docs/CONFORMANCE.md)
 
-Maintained by L0G4NN. Original project material is reserved under [LICENSE](LICENSE); the vendored Swofty SDK retains its MIT licence. No game assets are included. This project is not affiliated with EA, Codemasters, Formula 1, iRacing or Swofty.
+The live HUD is hidden in garage/paused/unknown contexts by default to avoid covering game-menu text. See [issue #8 validation](docs/SETUP_NAMING.md) for the mitigation, troubleshooting override and remaining in-game check.
+
+Review closes on any pause (including replay/flashback) and refuses focus while keyboard/controller controls are held. The reported stuck-throttle behaviour still requires in-game verification; this addon does not write vehicle inputs.
+
+F8 also includes Speed/Gear, ERS, per-wheel Slip and Aero Height pages, with dashed S2/S3 boundaries. The live HUD shows the reported front-wheel steering angle in degrees. Extended recording uses a fixed 52.4 MiB pool; see [extended telemetry](docs/EXTENDED_TELEMETRY.md) for units, 16 m resolution and validation limits.

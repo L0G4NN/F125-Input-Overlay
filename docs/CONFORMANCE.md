@@ -36,3 +36,7 @@ New native bindings use a toggle and integral 6–12 slider; package API version
 ## Game-menu mitigation (0.2.1)
 
 The new native toggle uses documented settings binding. Visibility comes from validated existing UDP metadata; it introduces no UI memory offsets, font patches or global key hooks. Review uses only runtime-gated v3 input/focus calls and gives up focus for game-directed input. Exact dialog activity is not inferred from missing keys. SETUP_NAMING.md records the lack of visual reproduction and the required game matrix.
+
+## Extended telemetry in 0.3.0
+
+See [EXTENDED_TELEMETRY.md](EXTENDED_TELEMETRY.md) for the implemented sector markers, five F8 pages, per-wheel selector, front-wheel steering readout, verified EA offsets and unit limitations. The new total fixed pool is 52.4 MiB, superseding earlier pedal-only 24.2 MiB totals. Pedals retain 2 m bins; extra channels use 16 m extrema bins. Rendering is four 176-column arrays for the selected page only. Existing garage-only/unpaused focus safeguards and socket bounds remain in force. Game validation remains pending.

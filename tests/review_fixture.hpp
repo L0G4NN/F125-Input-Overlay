@@ -18,6 +18,14 @@ inline Bytes meta(unsigned lap,float distance,std::uint32_t frame,float time,uns
 inline Bytes pedals(std::uint32_t frame,float time,float throttle=.75f,float brake=.25f) {
     auto p=header(6,1352,frame,time); fp(p,31,throttle); fp(p,39,brake); return p;
 }
+inline Bytes motion_extra(std::uint32_t frame,float time,float value=.1f) {
+    auto p=header(13,273,frame,time);
+    for(unsigned wheel=0;wheel<4;++wheel) { fp(p,93+4*wheel,value*(wheel+1));fp(p,109+4*wheel,-value*.1f*(wheel+1)); }
+    fp(p,197,value);fp(p,217,.03f+value*.01f);fp(p,221,.05f+value*.01f);return p;
+}
+inline Bytes car_status(std::uint32_t frame,float time,float power=120000,float energy=2500000) {
+    auto p=header(7,1239,frame,time);fp(p,62,power);fp(p,79,energy);return p;
+}
 inline void pair(input_trace::review::Recorder& r,unsigned lap,float distance,std::uint32_t frame,float time,bool reverse=false,float t=.75f,float b=.25f) {
     auto m=meta(lap,distance,frame,time),p=pedals(frame,time,t,b);
     if(reverse) { r.accept(p,time); r.accept(m,time); } else {r.accept(m,time); r.accept(p,time);}

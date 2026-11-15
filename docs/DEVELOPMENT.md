@@ -58,3 +58,7 @@ Never report a successful build as proof that the addon loads or that pedal trac
 The pinned telemetry implementation exposes cached car values and a flow-driven clock, without per-input packet freshness. The addon therefore decodes EA 2025 UDP datagrams itself. Receipt and overall frame IDs establish freshness; header session timestamps provide plot time. Rendering and ingestion have one render-thread owner; settings and lifecycle notifications use atomic values. The socket is nonblocking with a 128-datagram per-frame budget. Socket and SDK callback lifetime follows the game process; changing enabled addons requires a game restart.
 
 Current package outputs include both ZIP and `.swoftyaddon` archives. See CONFORMANCE.md for the reference review and queue recovery contract.
+
+## Extended telemetry in 0.3.0
+
+See [EXTENDED_TELEMETRY.md](EXTENDED_TELEMETRY.md) for the implemented sector markers, five F8 pages, per-wheel selector, front-wheel steering readout, verified EA offsets and unit limitations. The new total fixed pool is 52.4 MiB, superseding earlier pedal-only 24.2 MiB totals. Pedals retain 2 m bins; extra channels use 16 m extrema bins. Rendering is four 176-column arrays for the selected page only. Existing garage-only/unpaused focus safeguards and socket bounds remain in force. Game validation remains pending.

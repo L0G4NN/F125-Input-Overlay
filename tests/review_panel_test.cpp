@@ -8,12 +8,12 @@
 #include <iostream>
 using namespace input_trace::review;
 namespace {
-SwoftyInput input{}; int glyphs=0; bool amber=false,cyan=false; int focus_calls=0, lines=0, texts=0,rects=0, input_calls=0; bool focused=false; int focus_result=SWOFTY_ASSET_OK;
+SwoftyInput input{}; int sectors=0; int glyphs=0; bool amber=false,cyan=false; int focus_calls=0, lines=0, texts=0,rects=0, input_calls=0; bool focused=false; int focus_result=SWOFTY_ASSET_OK;
 int read_input(const SwoftyPaint*,SwoftyInput* out) { ++input_calls; *out=input; out->focused=focused; return SWOFTY_ASSET_OK; }
 int focus(int on) { ++focus_calls; if(focus_result==SWOFTY_ASSET_OK || !on) focused=on!=0; return focus_result; }
 void size(const SwoftyPaint*,float* w,float* h) {*w=1920;*h=1080;}
 void rect(SwoftyPaint*,float,float,float,float,uint32_t) {++rects;}
-void line(SwoftyPaint*,float x,float y,float a,float b,float,uint32_t colour) {if(colour==0xffbd59ff) amber=true;if(colour==0x55d9ffff) cyan=true;if(!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(a)||!std::isfinite(b))std::abort();++lines;}
+void line(SwoftyPaint*,float x,float y,float a,float b,float,uint32_t colour) {if(colour==0xffffff80) ++sectors;if(colour==0xffbd59ff) amber=true;if(colour==0x55d9ffff) cyan=true;if(!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(a)||!std::isfinite(b))std::abort();++lines;}
 void text(SwoftyPaint*,float,float,float,uint32_t,const char* str) {++texts;glyphs+=int(std::strlen(str));}
 void check(bool ok) {if(!ok)std::abort();}
 }
@@ -58,13 +58,16 @@ int main() {
     auto before=input_calls;input={};paint(false);check(!p.open() && !focused && input_calls==before);
     // Full graphs, all twelve quality-labelled rows and cursor readout must
     // leave space within Swofty's 16,384-vertex budget (6 per glyph/quad/line).
-    r.reset();r.accept(fixture::session(),0);unsigned frame=1;float time=0;
+    r.reset();auto session=fixture::session();fixture::fp(session,745,300);fixture::fp(session,749,700);r.accept(session,0);unsigned frame=1;float time=0;
     for(unsigned lap=1;lap<=13;++lap) {
         time+=.01f;r.accept(fixture::meta(lap,0,frame++,time,3,90000,true),time);
         if(lap==13) break;
         for(unsigned d=2;d<1000;d+=2) {
             if(d==10) r.gap();
-            time+=.01f;fixture::pair(r,lap,float(d),frame++,time,false,float(d%100)/100,float((d+30)%100)/100);
+            time+=.01f;
+            r.accept(fixture::motion_extra(frame,time,float(d%100)/100),time);
+            r.accept(fixture::car_status(frame,time,float(d%100)*1200,float(d)*2500),time);
+            fixture::pair(r,lap,float(d),frame++,time,false,float(d%100)/100,float((d+30)%100)/100);
         }
     }
     input={};input.keys_pressed[119/8]|=1u<<(119%8);paint();check(p.open());
@@ -72,8 +75,14 @@ int main() {
     input={};input.x=1000;input.y=300;lines=rects=glyphs=0;amber=cyan=false;paint();
     check(amber && cyan && 6*(lines+rects+glyphs)<16384);
     // Switch to shared-axis view and back without changing the selected laps.
-    input={};input.x=900;input.y=185;input.pressed=SWOFTY_MOUSE_LEFT;paint();
+    input={};input.x=1050;input.y=145;input.pressed=SWOFTY_MOUSE_LEFT;paint();
     input={};input.x=1000;input.y=300;lines=rects=glyphs=0;amber=cyan=false;paint();
     check(amber && cyan && 6*(lines+rects+glyphs)<16384);
+    // Exercise every page at full X/Y geometry density, with sectors and cursor.
+    for(int page=0;page<5;++page) {
+        input={};input.x=60+610+page*230;input.y=70+110;input.pressed=SWOFTY_MOUSE_LEFT;paint();
+        input={};input.x=1000;input.y=300;lines=rects=glyphs=sectors=0;amber=cyan=false;paint();
+        check(amber && cyan && sectors>0 && 6*(lines+rects+glyphs)<16384);
+    }
     std::cout<<"Panel focus, feature-gating and draw-budget checks passed\n";
 }
