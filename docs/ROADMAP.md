@@ -48,7 +48,17 @@ Exit: a tagged release with exact supported versions and honest test evidence.
 
 ## Later ideas
 
-User-selectable colours, steering trace, optional hotkeys, dragging, lap comparison and recording.
+User-selectable colours, steering trace and dragging.
+
+## Planned next feature — F8 lap review
+
+See [Session lap review and comparison](LAP_REVIEW.md). Documentation only; implementation has not started.
+
+- [ ] Verify overlay v3 input/focus, garage/pause state and fresh lap metadata.
+- [ ] Add bounded session recording with correct lap completion, invalidity and flashback handling.
+- [ ] Add F8 menu with completed-lap selection and distance-aligned X/Y traces.
+- [ ] Add zoom/pan/cursor and bounded min/max geometry.
+- [ ] Complete sanitizer, fuzz, input-focus and in-game performance validation.
 Keep them separate from the initial throttle/brake implementation.
 
 The portable M2 core was implemented independently while M1 native source freshness and lifecycle questions remain open. M1 has not passed its exit gate.

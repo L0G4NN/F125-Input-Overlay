@@ -34,6 +34,7 @@ Repository: [L0G4NN/F125-Input-Overlay](https://github.com/L0G4NN/F125-Input-Ove
 | [Architecture](docs/ARCHITECTURE.md) | Components, timing, data ownership and failure handling |
 | [Development](docs/DEVELOPMENT.md) | Build strategy and first implementation steps |
 | [Test plan](docs/TEST_PLAN.md) | Unit, integration and in-game checks |
+| [Lap review plan](docs/LAP_REVIEW.md) | Planned F8 session lap browser and X/Y comparison; not implemented |
 | [Roadmap](docs/ROADMAP.md) | Ordered milestones and completion gates |
 | [Sources and compatibility](docs/SOURCES.md) | Upstream references and unresolved assumptions |
 | [Contributing](CONTRIBUTING.md) | Branch and review workflow |

@@ -1,5 +1,10 @@
 # Changelog
 
+## Planned — documentation only
+
+- Specify the F8 session lap browser, lap recording lifecycle, distance-aligned X/Y comparison, controls, bounded memory/rendering and acceptance tests in docs/LAP_REVIEW.md.
+- No runtime feature or package version change.
+
 ## Unreleased — packet validation hardening
 
 - Reject invalid pedals before session/frame tracking changes; preserve gap indication only for newer packets from the established player.
