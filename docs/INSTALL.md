@@ -3,7 +3,7 @@
 This is an experimental Windows x64 build. It is packaged for Swofty import, but has not been loaded in a real F1 25 session here.
 
 1. Close F1 25. Use a current Swofty Launcher (the overlay feature requires at least 1.3.7).
-2. Install the `.swoftyaddon` from the Addons page, or drag `F125-Input-Overlay-0.2.0.swoftyaddon` onto the launcher window. It is an **addon**, with `swofty.json` at the archive root; leave it archived.
+2. Install the `.swoftyaddon` from the Addons page, or drag `F125-Input-Overlay-0.2.1.swoftyaddon` onto the launcher window. It is an **addon**, with `swofty.json` at the archive root; leave it archived.
 3. Enable **F1 25 Input Overlay** in your offline profile, then launch the game through Swofty.
 4. In F1 25's Telemetry Settings, set:
 
@@ -53,3 +53,11 @@ The pool is allocated/zeroed once during addon startup, not each lap or frame: 2
 Unmatched frames, missing data, partial first laps and invalid laps are labelled or drawn with gaps. Flashback or lap-number rewind conservatively clears **all recorded laps** and X/Y selections; this first implementation does not reconstruct pre-flashback history. Final classification can confirm the final lap with time unknown if no authoritative lap-time transition arrived. No session-history time backfill is implemented. Unknown track IDs and tracks longer than 16,384 m are not recorded.
 
 Real game checks remain pending: packet pairing/garage transitions on your exact game build, keyboard/mouse focus, setting persistence, race finalization and CPU/GPU performance. The local tests and synthetic profiles are not an in-game validation.
+
+## Setup-name visibility (0.2.1)
+
+**Hide live HUD in garage and menus** defaults to on. With it on, the small HUD draws only with fresh non-garage lap metadata and while not paused. No/stale UDP means the HUD stays hidden; diagnose UDP/port errors in the loader log. This also works on older cores without overlay input v3. Session recording continues under its existing settings.
+
+The F8 review panel remains available in the garage or while paused. Close it before naming a setup. Non-review keys, typed characters or gamepad navigation now close it and release focus; characters already captured during that frame are not replayed, so retype the first character if you began typing with review open. DirectInput wheels are not guaranteed to appear in the overlay's XInput snapshot.
+
+Turning **Hide live HUD in garage and menus** off restores the previous always-visible HUD for troubleshooting; leave it on for the default mitigation. This is an addon-side mitigation for issue #8; actual setup-name rendering/entry still needs verification in F1 25. See SETUP_NAMING.md.

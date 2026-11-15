@@ -32,3 +32,7 @@ Install the `.swoftyaddon` on the Addons page (or `swofty addons install FILE`),
 Runtime `SwoftyCoreOverlayVersion >= 3` gates every input/focus field access; older cores keep the API-v5 live HUD. `SwoftyCorePauseReasons` is queried only when exported. The same documented core-export approach is used by the pinned C++ wrappers; no new memory offsets/hooks are introduced. The v3 extension remains a runtime gate, not a claim that all launchers meeting the existing minimum support the review menu.
 
 New native bindings use a toggle and integral 6–12 slider; package API version remains 5. UDP decoders use EA 2025 v3 sizes/strides documented in SOURCES.md. Recording is memory-only and bounded; performance and input-focus conformance need the real-game matrix. See REVIEW_VALIDATION.md.
+
+## Game-menu mitigation (0.2.1)
+
+The new native toggle uses documented settings binding. Visibility comes from validated existing UDP metadata; it introduces no UI memory offsets, font patches or global key hooks. Review uses only runtime-gated v3 input/focus calls and gives up focus for game-directed input. Exact dialog activity is not inferred from missing keys. SETUP_NAMING.md records the lack of visual reproduction and the required game matrix.

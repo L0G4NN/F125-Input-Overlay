@@ -65,3 +65,7 @@ Regression tests verify malformed other-session packets cannot retire a legitima
 ## Lap review tests
 
 `bash scripts/test.sh` includes portable store/plot tests and a fake overlay test for v3/focus gating, closed-state drawing, feature fallback and focus cleanup. Additional commands and measured synthetic profiles are in REVIEW_VALIDATION.md. On Windows verify fresh garage/pause gating, exact packet frame pairing, F8/rebinding, Alt-Tab, controllers/wheels, both lap selections, full races and final-lap handling before claiming runtime support.
+
+## Setup naming regression
+
+Portable `hud_visibility_test` checks garage/pause/unknown/stale suppression, explicit override and unallocated-pool metadata ingestion under ASan/UBSan. Fake-overlay tests check typing while closed never acquires focus and typing/Enter/gamepad input while open releases it. The Windows build and package check pass. These are policy tests, not proof that issue #8 is resolved visually. Run the stock/core-only/addon naming matrix in SETUP_NAMING.md on the affected game/runtime.

@@ -16,3 +16,5 @@ mkdir -p build
 ./build/lap_review_test
 "${CXX:-g++}" -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -Isrc -Ithird_party/swofty tests/review_panel_test.cpp -o build/review_panel_test
 ./build/review_panel_test
+"${CXX:-g++}" -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -Isrc tests/hud_visibility_test.cpp -o build/hud_visibility_test
+./build/hud_visibility_test

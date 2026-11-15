@@ -30,7 +30,7 @@ class Recorder {
 public:
     bool initialize() { if(!pool_) pool_.reset(new(std::nothrow) Pool); return bool(pool_); }
     void reset() {
-        count_=stored_=0; active_=false; session_=false; garage_=false; rewound_=false; finished_=false;
+        count_=stored_=0; active_=false; session_=false; garage_=false; lap_seen_=false; rewound_=false; finished_=false;
         pairs_={}; seen_={}; broken_=true; have_sample_=false; ++generation_; // pool stamps are never reused
     }
     void gap() { broken_=true; if(active_) current_.partial=true; pairs_={}; }
@@ -47,12 +47,14 @@ public:
     bool available() const { return bool(pool_); }
     unsigned generation() const { return generation_; }
     float length() const { return length_; }
-    bool garage(double now) const { return session_ && garage_ && now>=lap_wall_ && now-lap_wall_<=.5; }
+    bool fresh_lap(double now) const { return session_ && lap_seen_ && now>=lap_wall_ && now-lap_wall_<=.5; }
+    bool garage(double now) const { return fresh_lap(now) && garage_; }
+    bool on_track(double now) const { return fresh_lap(now) && !garage_; }
     bool metadata_limit() const { return count_==lap_limit; }
     static constexpr std::size_t storage_bytes() { return sizeof(Pool); }
     // Fully validate each packet before committing identity, ordering or lap state.
     void accept(std::span<const unsigned char> p,double wall) {
-        if(!pool_ || !std::isfinite(wall) || p.size()<29) return;
+        if(!std::isfinite(wall) || p.size()<29) return;
         Pedals h{}; unsigned stream=0;
         if(p[6]==1) {
             if(!decode_common(p,h,1,753)) return;
@@ -104,8 +106,8 @@ public:
         }
         remember(stream,h);
         if(stream==1) {
-            garage_=m.driver==0; lap_wall_=wall;
-            if(!recording_ || finished_) return;
+            garage_=m.driver==0; lap_seen_=true; lap_wall_=wall;
+            if(!recording_ || !pool_ || finished_) return;
             if(active_ && m.lap!=current_.number) {
                 if(m.lap==current_.number+1) finish(m.last_ms); // skipped transitions are never invented as completed laps
                 active_=false;
@@ -121,7 +123,7 @@ public:
             }
             current_.invalid|=m.invalid; current_.out|=m.driver==3; current_.in|=m.driver==2;
         }
-        if(!recording_) return;
+        if(!recording_ || !pool_) return;
         // Match exact overall frames regardless of packet arrival order. No cached-distance interpolation.
         auto& pair=pairs_[h.frame%pairs_.size()];
         if((pair.m && pair.meta.h.frame!=h.frame) || (pair.p && pair.pedals.frame!=h.frame)) pair={};
@@ -178,7 +180,7 @@ private:
     bool rewound_{}, finished_{};
     float length_{};
     double last_time_{}, lap_wall_{};
-    bool active_{}, session_{}, garage_{}, recording_{true}, broken_{true}, have_sample_{};
+    bool active_{}, session_{}, garage_{}, lap_seen_{}, recording_{true}, broken_{true}, have_sample_{};
 };
 static_assert(Recorder::storage_bytes()+sizeof(Recorder)<32u*1024*1024);
 }

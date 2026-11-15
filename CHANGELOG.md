@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 — Setup naming visibility mitigation
+
+- Hide the live HUD in garage, paused and stale/unknown contexts by default, keeping overlay drawing off game menus.
+- Track lightweight visibility metadata even without the lap-review pool; add a native troubleshooting override.
+- Release review focus when typing, non-review keyboard input or gamepad navigation starts.
+- Add sanitizer regressions for visibility and input handoff. Issue #8 still needs in-game confirmation; no root-cause or visual-reproduction claim.
+
 ## 0.2.0 — Experimental session lap review
 
 - Add startup-allocated, bounded memory-only lap recording with 2 m throttle/brake envelopes, 128 detailed traces and metadata-only overflow.

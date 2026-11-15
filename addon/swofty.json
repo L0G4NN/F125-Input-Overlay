@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "l0g4nn.input-overlay",
   "name": "F1 25 Input Overlay",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": "L0G4NN",
   "description": "Live pedal traces and F8 session lap comparison. UDP 2025 to 127.0.0.1:20777. Experimental.",
   "kind": [
@@ -121,6 +121,13 @@
       "min": 6,
       "max": 12,
       "step": 1,
+      "binds": "native"
+    },
+    {
+      "id": "hide_in_menus",
+      "type": "toggle",
+      "label": "Hide live HUD in garage and menus",
+      "default": true,
       "binds": "native"
     }
   ],
