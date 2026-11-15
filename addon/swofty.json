@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "logannoonan.input-overlay",
   "name": "F1 25 Input Overlay",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "author": "L0G4NN",
   "description": "Throttle and brake history. Enable UDP 2025 to 127.0.0.1:20777. Experimental first build.",
   "kind": [
@@ -83,6 +83,26 @@
       "default": 0,
       "min": 0,
       "max": 3,
+      "step": 1,
+      "binds": "native"
+    },
+    {
+      "id": "horizontal",
+      "type": "slider",
+      "label": "Horizontal position from selected corner (%)",
+      "default": 0,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "binds": "native"
+    },
+    {
+      "id": "vertical",
+      "type": "slider",
+      "label": "Vertical position from selected corner (%)",
+      "default": 0,
+      "min": 0,
+      "max": 100,
       "step": 1,
       "binds": "native"
     }

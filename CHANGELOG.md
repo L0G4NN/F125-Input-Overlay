@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+- Added persistent native horizontal/vertical position settings alongside width, height and corner.
+- Layout remains within screen bounds across resolutions.
+- Added layout tests for corners, centres, limits and resolutions.
+
 ## 0.1.0 — Experimental import build
 
 - Added Windows Swofty DLL, UDP 2025 receiver, green/red scrolling traces, bars and native settings.
