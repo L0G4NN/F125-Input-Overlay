@@ -55,3 +55,7 @@ Settings must survive a normal restart using the supported launcher mechanism.
 ## Deferred
 
 Steering/clutch, best-lap comparison, CSV export, coaching, input filtering, raw pedal device access, bespoke UDP parsing, lap-distance plots and alternative renderers.
+
+## 0.1.0 delivery notes
+
+Core and UDP checks are automated. Current native layout uses four corners with a fixed 24-unit margin; adjustable offsets remain deferred. Packet freshness is explicit. Pause and session events are wired but need verification on a real game build. This package is for first in-game testing, not a completed release against every acceptance criterion.

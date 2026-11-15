@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0 — Experimental import build
+
+- Added Windows Swofty DLL, UDP 2025 receiver, green/red scrolling traces, bars and native settings.
+- Added session/player resets, duplicate/reordered packet rejection, stale-data indication and pause/resume events.
+- Added reproducible build/package scripts and install instructions.
+- Compiled and inspected; real Swofty import and game testing remain pending.
+
 ## Unreleased
 
 ### Added
