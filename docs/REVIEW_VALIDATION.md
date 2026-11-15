@@ -35,7 +35,7 @@ Leak detection is disabled because this host is run under ptrace. ASan/UBSan rem
 | --- | ---: |
 | Fixed 129 x 8,192 x 24-byte bin pool | 25,362,432 |
 | Recorder metadata, pairing/order/lifecycle state on this host | 34,360 |
-| Four 512-column plot envelopes | 24,576 |
+| Four 192-column plot envelopes and connectivity | 18,432 |
 
 Total review-owned storage is about 24.25 MiB, below the 32 MiB budget, before small allocator bookkeeping/Panel scalars and upstream rendering buffers. Pool allocation and initialization happen once during ON_LOAD. The pool is retained until game exit; recording off does not free/reallocate it. Generation stamps avoid a 196 KiB trace clear or copy during each lap transition.
 
@@ -54,8 +54,14 @@ One local optimized run, average time for a validated metadata+pedal pair over 3
 
 Fixture byte updates are included; socket receive, the live HUD, operating system input calls and game/GPU work are excluded. Values are microbenchmarks on shared hardware and should not be interpreted as a guaranteed game callback budget. The important structural result is unchanged bounds/allocation count at high lap counts.
 
-An additional development-only profile fed 128 full 16,384 m synthetic laps, selected X/Y, and drew the cached menu through the pinned upstream portable HUD geometry/text implementation. Over 2,000 paints it averaged about 49.3 microseconds CPU, with 12,306 vertices in one batch. This excludes actual D3D12 upload, driver/GPU work, Winsock and Windows focus. The scratch profile depends on the separately checked-out upstream source and is not part of the standalone project test command. The project's fake-overlay test remains the portable input/state check.
+For the previous 0.2.0 renderer, an additional development-only profile fed 128 full 16,384 m synthetic laps, selected X/Y, and drew the cached menu through the pinned upstream portable HUD geometry/text implementation. Over 2,000 paints it averaged about 49.3 microseconds CPU, with 12,306 vertices in one batch. This excludes actual D3D12 upload, driver/GPU work, Winsock and Windows focus. The scratch profile depends on the separately checked-out upstream source and is not part of the standalone project test command. The project's fake-overlay test remains the portable input/state check.
 
 ## Still required on a gaming PC
 
 Record exact game, launcher/core and hardware versions. Verify metadata field behaviour and exact overall-frame pairing from real packets, lap transitions/last-lap times in qualifying and full races, garage/pause checks, F8/rebinding, coexistence and controller/wheel limitations. Compare disabled, recording-with-menu-closed and open-X/Y scenes using CPU/GPU frame-time distributions and 30-minute memory high-water observations. Do not advertise zero performance impact or full runtime compatibility from these local results.
+
+## 0.2.2 follow-up checks
+
+ASan/UBSan regression tests and 300,000 mutated review packet/state cases pass. New cases cover connected sparse samples, explicit and subpixel gaps, zoom boundaries, held controls on the F8 frame, pause closing without further input reads, and both comparison layouts with twelve quality-labelled rows plus the cursor readout within the 16,384-vertex budget. Zig 0.14.1 Windows compilation and packaging pass.
+
+The pool is unchanged. Allocation-count tests again observed zero new C++ allocations during ingestion and plot rebuilds at 0/78/128/200 completed laps. The updated portable upstream draw-list profile with 128 full laps and X/Y selected used 12,552 vertices in one batch and averaged 49.1 microseconds per cached paint on this host. These are synthetic CPU observations, excluding GPU, Windows input and socket scheduling. Actual F1 25 readability and the reported flashback/stuck-throttle fault remain unverified. No claim that the input-capture mitigation fixes a core/game input problem is made.

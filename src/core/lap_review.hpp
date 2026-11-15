@@ -8,6 +8,8 @@ namespace input_trace::review {
 constexpr std::size_t bins_per_lap=8192, trace_limit=128, lap_limit=1024;
 struct Bin {
     float throttle_min{}, throttle_max{}, brake_min{}, brake_max{};
+    // link: bit 0 invalidates a mixed/discontinuous bin; upper bits hold
+    // the preceding connected bin index + 1 (zero means no connection).
     std::uint32_t stamp{}, broken{};
 };
 static_assert(sizeof(Bin)==24);
@@ -40,7 +42,7 @@ public:
     const Bin* bin(const Lap& l,std::size_t i) const {
         if(!pool_ || l.limited || l.slot>trace_limit || i>=bins_per_lap) return nullptr;
         const auto& b=pool_->bins[l.slot][i];
-        return b.stamp==l.stamp && !b.broken ? &b : nullptr;
+        return b.stamp==l.stamp && !(b.broken&1) ? &b : nullptr;
     }
     bool recording() const { return recording_; }
     bool session_ready() const { return session_; }
@@ -156,9 +158,13 @@ private:
         if(interrupted && have_sample_) current_.partial=true;
         if(!current_.limited) {
             auto& b=pool_->bins[current_.slot][i];
-            if(b.stamp!=current_.stamp) b={p.throttle,p.throttle,p.brake,p.brake,current_.stamp,0};
+            if(b.stamp!=current_.stamp) {
+                const auto previous=std::size_t(std::max(0.f,current_.last)/2);
+                const auto link=!interrupted && have_sample_ && previous<i ? std::uint32_t((previous+1)<<1) : 0u;
+                b={p.throttle,p.throttle,p.brake,p.brake,current_.stamp,link};
+            }
             else {
-                if(interrupted) b.broken=1;
+                if(interrupted) b.broken|=1;
                 b.throttle_min=std::min(b.throttle_min,p.throttle); b.throttle_max=std::max(b.throttle_max,p.throttle);
                 b.brake_min=std::min(b.brake_min,p.brake); b.brake_max=std::max(b.brake_max,p.brake);
             }

@@ -14,8 +14,8 @@ The existing scrolling live trace remains available independently. Closing the p
 | --- | --- |
 | F8, default configurable key | Toggle once per key-down edge; holding must not repeatedly toggle |
 | Escape / Close | Close and release focus; do not consume Escape while closed |
-| Lap X selector | Primary lap; solid green throttle and red brake |
-| Lap Y selector | Optional comparison lap; dashed green/red with an explicit X/Y legend |
+| Lap X selector | Primary lap; cyan in both labelled pedal graphs |
+| Lap Y selector | Optional comparison lap; amber, with separate lanes by default and an overlay toggle |
 | Remove comparison | Return to one lap; same lap selected twice produces a clear no-op |
 | Wheel over graph | Zoom about cursor within recorded distance range |
 | Drag within graph | Pan the visible distance window; no dragging the car/game menus |
@@ -32,7 +32,7 @@ Use Swofty's documented overlay input and focus interfaces. Query the runtime ov
 
 The [overlay reference](https://f1.swofty.net/reference/std/overlay.html) documents input/focus v3, Windows virtual-key codes and an F8 opening example. Use key-pressed rather than auto-repeat. Only poll the focused game window; do not install global keyboard hooks or raw OS polling. Respect text-entry suppression and another addon's focus. Rebinding must reject a missing/invalid key and provide a recoverable default through native settings.
 
-Focus blocks many keyboard/mouse messages, but gamepads and wheels still reach the game. Initially allow opening only in a positively verified garage or paused state. If that state cannot be established, fail closed with a clear explanation; do not infer garage/pause from UDP silence. Close/release focus on transition back to driving, session replacement, disable and loss of focus. Do not auto-reclaim focus stolen by another addon. Close on Alt-Tab where the supported state can detect it, and test reacquisition without stuck input.
+Focus blocks many keyboard/mouse messages, but gamepads and wheels still reach the game. Initially allow opening only in a fresh garage state while unpaused. If that state cannot be established, fail closed with a clear explanation; do not infer garage/pause from UDP silence. Close/release focus on transition back to driving, session replacement, disable and loss of focus. Do not auto-reclaim focus stolen by another addon. Close on Alt-Tab where the supported state can detect it, and test reacquisition without stuck input.
 
 A supported focus failure must leave the menu closed, without a captured cursor. Missing v3 support disables only review interaction, with a diagnostic; the existing live overlay should remain usable. This behaviour needs real game verification before a support claim.
 
@@ -106,7 +106,13 @@ For a missing or ambiguous bin, draw a gap. Valid samples separated by a discont
 - `src/core/lap_review.hpp`: render-owner store, startup-allocated 129-slot pool (128 finished plus active), 2 m min/max bins, stamp-based reuse without clearing/copying a full lap in paint, 1,024-entry metadata guard. Pool 25,362,432 bytes plus Recorder 34,360 bytes on this host; plot cache is fixed 24,576 bytes. No allocation after startup in the ingestion/plot paths.
 - UDP session (1), lap (2), pedals (6) and final classification (8) use the pinned EA 2025 v3 packed layouts. Per-stream frame ordering, full validation before tracking, exact-frame pairing in 8 bounded slots and <=100 ms source/receipt agreement. Metadata frames without a pedal partner never fabricate a sample. Spectating/network sessions and unknown/oversize tracks are not recorded.
 - `src/swofty/review_panel.hpp`: gated v3 input/focus, F8 default (F6–F12 setting), 12-row paginated lap list, X/Y selection, two min/max distance plots, cursor ranges, wheel zoom, drag pan and reset. Closed review performs no graph work; driving frames skip review input queries. No game pause or physics writes.
-- `src/core/review_plot.hpp`: only selected laps are aggregated to 512 columns; caches rebuild on selection/view/count changes. At most 2,048 v1 envelope line requests (fewer with dashed Y), not full-session rendering. Missing bins have no data and columns are never joined; overview shows envelopes of known samples, not a lossless raw trace.
+- `src/core/review_plot.hpp`: only selected laps are aggregated to 192 columns; caches rebuild on selection/view/count changes. At most 1,536 v1 trace line requests, not full-session rendering. Verified predecessor links connect sparse samples; true gaps stay disconnected. Overview shows upper envelopes and min/max markers, not a lossless raw trace.
 - Rewind policy is conservative: discard the whole recording generation and selections, retaining no abandoned attempt. Fine-grained rollback is deferred. Final classification may finalize the last active lap with unknown time. Session-history backfill and native menu injection are deferred.
 - New settings: recording toggle and function key number. Master disable stops both features; record-only disable retains completed laps. Unsupported overlay v3 or allocation failure leaves the existing live HUD operational. Input capture behaviour and session lifecycle still need real-game evidence.
 - Acceptance remains experimental until the manual matrix is run. See REVIEW_VALIDATION.md for measured local checks, memory and profiling limits.
+
+## 0.2.2 behaviour update
+
+Interactive F8 review is now **garage-only and unpaused**, superseding earlier paused-review descriptions. Any pause closes it, even with fresh garage metadata; held keyboard/controller controls prevent focus acquisition. Test entering flashback with throttle held/released, both with review closed and after leaving the garage review, on keyboard, controller and wheel. Compare addon-disabled and Swofty-core-only runs if the fault persists: the addon never writes throttle or injects controls, and no exact replay/flashback query is available in the pinned public API. This is an input-capture mitigation, not a confirmed game-level fix.
+
+Lap rows use separate timing and quality lines. X (cyan) and Y (amber) use separate lanes by default; “View: overlay” puts them on shared pedal axes. Connected upper-envelope lines plus min/max markers replace isolated dots. A connection requires a recorded predecessor link, including sparse bins at racing speed; gaps remain disconnected and no smoothing is applied. Zoom to inspect detail. The bin pool remains 24.2 MiB; four 192-column caches and at most 1,536 trace-line calls bound open-menu work independently of lap count.

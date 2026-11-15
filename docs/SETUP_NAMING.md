@@ -32,3 +32,9 @@ Record exact game, Swofty/core and addon version. In the setup save/name dialog 
 Repeat after leaving/re-entering the garage, pause/resume, Alt-Tab, recording on/off and another overlay taking focus. Verify the live HUD returns on track when fresh metadata resumes. Confirm UDP-off/port-conflict behaviour is diagnosed through logs without an obstructing HUD.
 
 If B also reproduces the problem, investigate Swofty core or other addons; avoid claiming an addon-only fix. If C still reproduces while this addon issues no draw calls and owns no focus, collect the loader log and a screenshot, and isolate the core renderer/input path with a minimal addon. Do not patch font colours or renderer state without evidence.
+
+## 0.2.2 behaviour update
+
+Interactive F8 review is now **garage-only and unpaused**, superseding earlier paused-review descriptions. Any pause closes it, even with fresh garage metadata; held keyboard/controller controls prevent focus acquisition. Test entering flashback with throttle held/released, both with review closed and after leaving the garage review, on keyboard, controller and wheel. Compare addon-disabled and Swofty-core-only runs if the fault persists: the addon never writes throttle or injects controls, and no exact replay/flashback query is available in the pinned public API. This is an input-capture mitigation, not a confirmed game-level fix.
+
+Lap rows use separate timing and quality lines. X (cyan) and Y (amber) use separate lanes by default; “View: overlay” puts them on shared pedal axes. Connected upper-envelope lines plus min/max markers replace isolated dots. A connection requires a recorded predecessor link, including sparse bins at racing speed; gaps remain disconnected and no smoothing is applied. Zoom to inspect detail. The bin pool remains 24.2 MiB; four 192-column caches and at most 1,536 trace-line calls bound open-menu work independently of lap count.

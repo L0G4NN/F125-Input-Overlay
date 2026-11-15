@@ -108,8 +108,8 @@ void paint(SwoftyPaint* p,void*) {
     if(!on) return;
     feed.tick(now);
     float sw=0,sh=0; auto ov=api->overlay; ov->size(p,&sw,&sh);
-    if(sw<1 || sh<1) return;
-    const bool review_safe=is_paused || recorder.garage(now);
+    if(sw<1 || sh<1) { if(review_supported) review_panel.close(ov); return; }
+    const bool review_safe=input_trace::review_interactive(is_paused,recorder.garage(now));
     DWORD foreground_pid=0;
     if(review_supported && review_safe) GetWindowThreadProcessId(GetForegroundWindow(),&foreground_pid);
     review_panel.paint(api,p,recorder,now,review_safe,
@@ -127,7 +127,7 @@ void paint(SwoftyPaint* p,void*) {
     ov->text(p,x+4*scale,gy,12*scale,0xffffffb0,"100");
     ov->text(p,x+12*scale,gy+gh-12*scale,12*scale,0xffffffb0,"0");
     const char* status=socket_error?"UDP port 20777 unavailable":
-        paused.load()?"Paused":feed.trace.state()==input_trace::State::live?"Throttle / Brake":
+        is_paused?"Paused":feed.trace.state()==input_trace::State::live?"Throttle / Brake":
         "Waiting for UDP 2025 :20777";
     ov->text(p,x+8*scale,y+6*scale,14*scale,0xffffffff,status);
     for(std::size_t i=1;i<feed.trace.size();++i) {

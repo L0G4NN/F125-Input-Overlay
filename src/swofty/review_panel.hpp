@@ -21,7 +21,7 @@ public:
         // Review has no text fields or gamepad navigation. Hand input back to
         // the game instead of keeping setup-name characters/navigation captured.
         // Do not replay captured keys or characters into the game's window.
-        if(open_ && handing_back(in,hotkey)) { close(ov); return; }
+        if(handing_back(in,hotkey)) { close(ov); return; }
         if(key(in,hotkey)) {
             if(open_) { close(ov); return; }
             int result=ov->focus(1);
@@ -44,7 +44,7 @@ public:
         auto text=[&](float x,float y,const char* s,std::uint32_t c=0xffffffff){ov->text(paint,ox+x*scale,oy+y*scale,18*scale,c,s);};
         auto button=[&](float x,float y,float w,const char* label){rect(x,y,w,32,inside(x,y,w,32)?0x40526aff:0x27344aff);text(x+8,y+4,label);return click&&inside(x,y,w,32);};
         rect(0,0,1800,940,0x101722fa);
-        text(20,16,"LAP REVIEW  |  X solid / Y dashed  |  throttle green / brake red");
+        text(20,16,"LAP REVIEW  |  X cyan / Y amber  |  distance aligned");
         if(button(1670,12,110,"Close")) { close(ov); return; }
         text(20,60,"Completed laps - click X or Y");
         if(button(20,92,110,"Previous")) scroll_=std::max(0,scroll_-12);
@@ -53,16 +53,19 @@ public:
         if(in.wheel && inside(0,130,580,660)) scroll_=std::clamp(scroll_-int(in.wheel)*3,0,std::max(0,int(r.size())-12));
         for(int row=0;row<12 && std::size_t(scroll_+row)<r.size();++row) {
             int i=scroll_+row; const auto& l=r.lap(std::size_t(i)); float yy=138+row*52.f;
-            char label[160];
-            std::snprintf(label,sizeof label,"Lap %u   %u:%02u.%03u  %s%s%s",l.number,l.time_ms/60000,(l.time_ms/1000)%60,l.time_ms%1000,
-                l.invalid?"INVALID ":"",l.partial?"PARTIAL ":"",l.limited?"NO TRACE":l.out?"OUT LAP":l.in?"IN LAP":"");
-            if(!l.time_ms) std::snprintf(label,sizeof label,"Lap %u   time unknown  %s%s",l.number,l.partial?"PARTIAL ":"",l.limited?"NO TRACE":"");
-            text(20,yy,label,x_==i?0xadd8ffff:0xe0e6edff);
+            char label[96];
+            rect(12,yy-5,555,48,(x_==i || y_==i)?0x253246ff:0x151f2dff);
+            if(l.time_ms) std::snprintf(label,sizeof label,"Lap %u   %u:%02u.%03u",l.number,l.time_ms/60000,(l.time_ms/1000)%60,l.time_ms%1000);
+            else std::snprintf(label,sizeof label,"Lap %u   time unknown",l.number);
+            text(20,yy,label,x_==i?0x55d9ffff:y_==i?0xffbd59ff:0xe0e6edff);
+            std::snprintf(label,sizeof label,"%s%s%s",l.invalid?"INVALID ":"",l.partial?"PARTIAL ":"",l.limited?"NO TRACE":l.out?"OUT LAP":l.in?"IN LAP":"");
+            ov->text(paint,ox+20*scale,oy+(yy+23)*scale,14*scale,0x9eabc0ff,label);
             if(button(435,yy-3,52,x_==i?"X *":"X")) { x_=i; if(y_==x_) y_=-1; dirty_=true; }
             if(button(500,yy-3,52,y_==i?"Y *":"Y")) { y_=i==x_?-1:i; dirty_=true; }
         }
         if(!r.size()) text(20,160,!r.recording()?"Recording disabled.":!r.session_ready()?"Waiting for UDP session metadata.":"No completed laps recorded yet.");
         if(button(600,62,180,"Clear comparison")) { y_=-1; dirty_=true; }
+        if(button(800,104,200,split_?"View: separate":"View: overlay")) split_=!split_;
         if(button(800,62,140,"Reset view")) { view_begin_=0; view_end_=r.length(); dirty_=true; }
         if(view_end_<=view_begin_ || view_end_>r.length()) { view_begin_=0; view_end_=r.length(); dirty_=true; }
         char selection[160];
@@ -90,24 +93,47 @@ public:
             plot_.build(r,x_,y_,view_begin_,view_end_); dirty_=false;
             cache_x_=x_; cache_y_=y_; cache_count_=r.size();
         }
-        for(float top:{gy,gy2}) {
-            rect(gx,top,gw,gh,0x080d15ff);
-            for(int i=0;i<3;++i) ov->line(paint,ox+gx*scale,oy+(top+i*gh/2)*scale,ox+(gx+gw)*scale,oy+(top+i*gh/2)*scale,scale,0xffffff28);
+        for(unsigned s=0;s<4;++s) {
+            if(s>=2 && !split_) continue;
+            float top=(s%2?gy2:gy)+(split_ && s>=2?gh/2+12:0);
+            float lane=split_?gh/2-12:gh;
+            rect(gx,top,gw,lane,0x080d15ff);
+            for(int i=0;i<3;++i) ov->line(paint,ox+gx*scale,oy+(top+i*lane/2)*scale,ox+(gx+gw)*scale,oy+(top+i*lane/2)*scale,scale,0xffffff20);
+            text(gx-30,top,split_?(s<2?"X":"Y"):"%");
         }
         text(gx,gy-28,"THROTTLE  0-100%"); text(gx,gy2-28,"BRAKE  0-100%");
-        // 4 * 512 v1 line segments = at most 12,288 vertices, below the 16,384 budget.
+        // At most 4 * 192 * 2 lines = 9,216 trace vertices. Same bounded
+        // pool and no allocation; cache rebuilt only on selection/view changes.
         for(unsigned s=0;s<4;++s) for(unsigned c=0;c<Plot::columns;++c) {
             const auto& v=plot_.series[s][c];
-            if(!v.valid || v.broken || (s>=2 && (c/4)%2)) continue;
-            float xx=gx+gw*(float(c)+.5f)/Plot::columns, top=s%2?gy2:gy;
-            float y0=top+gh*(1-v.hi), y1=top+gh*(1-v.lo);
-            // A constant envelope still has a visible 2px marker.
-            ov->line(paint,ox+xx*scale,oy+y0*scale,ox+xx*scale,oy+std::min(top+gh,y1+2)*scale,
-                     2*scale,s%2?0xff4545ff:0x32e875ff);
+            if(!v.valid) continue;
+            const auto colour=s<2?0x55d9ffffu:0xffbd59ffu;
+            float top=(s%2?gy2:gy)+(split_ && s>=2?gh/2+12:0);
+            float lane=split_?gh/2-12:gh;
+            float xx=gx+gw*(float(c)+.5f)/Plot::columns;
+            if(v.previous>=0 && !v.broken) {
+                const auto& prev=plot_.series[s][v.previous];
+                if(!prev.broken) {
+                    float px=gx+gw*(float(v.previous)+.5f)/Plot::columns;
+                    ov->line(paint,ox+px*scale,oy+(top+lane*(1-prev.last))*scale,
+                             ox+xx*scale,oy+(top+lane*(1-v.first))*scale,2*scale,colour);
+                }
+            }
+            // Extrema preserve brief pedal spikes; connections follow the upper
+            // envelope, with no smoothing or interpolation over an input gap.
+            float y0=top+lane*(1-v.hi), y1=top+lane*(1-v.lo);
+            ov->line(paint,ox+xx*scale,oy+y0*scale,ox+xx*scale,oy+std::min(top+lane,y1+1)*scale,2*scale,colour);
         }
         char info[200];
+        for(int tick=0;tick<=4;++tick) {
+            const float xx=gx+gw*float(tick)/4;
+            std::snprintf(info,sizeof info,"%.0f m",view_begin_+(view_end_-view_begin_)*float(tick)/4);
+            ov->text(paint,ox+(xx-(tick==4?65:0))*scale,oy+(gy2+gh+8)*scale,14*scale,0x9eabc0ff,info);
+        }
         std::snprintf(info,sizeof info,"%.0f - %.0f m  |  wheel: zoom  drag: pan  |  2 m min/max bins",view_begin_,view_end_); text(gx,810,info);
         if(over) {
+            for(float top:{gy,gy2}) ov->line(paint,ox+(gx+fraction*gw)*scale,oy+top*scale,
+                ox+(gx+fraction*gw)*scale,oy+(top+gh)*scale,scale,0xffffff70);
             float d=view_begin_+fraction*(view_end_-view_begin_);
             auto bi=std::size_t(std::max(0.f,d/2));
             for(int which=0;which<2;++which) {
@@ -117,17 +143,17 @@ public:
                 text(gx,850+which*28.f,info);
             }
         }
-        text(20,810,"F8 / Escape to close. Game pause unchanged.");
+        text(20,810,"F8 / Escape to close. Garage only.");
         text(20,842,"Controllers/wheels still reach the game.");
         text(20,874,r.metadata_limit()?"Lap metadata limit reached.":"After 128 traces, later laps retain timing only.");
         (void)now;
     }
 private:
     static bool handing_back(const SwoftyInput& in,int hotkey) {
-        if(in.char_count || in.pad_pressed || std::abs(in.pad_lx)>.25f || std::abs(in.pad_ly)>.25f ||
+        if(in.char_count || in.pad_buttons || in.pad_pressed || std::abs(in.pad_lx)>.25f || std::abs(in.pad_ly)>.25f ||
            std::abs(in.pad_rx)>.25f || std::abs(in.pad_ry)>.25f || in.pad_lt>.1f || in.pad_rt>.1f) return true;
         for(int vk=0;vk<256;++vk)
-            if(vk!=hotkey && vk!=VK_ESCAPE && key(in,vk)) return true;
+            if(vk!=hotkey && vk!=VK_ESCAPE && (key(in,vk) || (in.keys_down[vk/8]&(1u<<(vk%8))))) return true;
         return false;
     }
     static bool key(const SwoftyInput& i,int vk) { return vk>0 && vk<256 && (i.keys_pressed[vk/8]&(1u<<(vk%8))); }
@@ -136,6 +162,6 @@ private:
     std::size_t cache_count_{};
     int x_{-1},y_{-1},cache_x_{-2},cache_y_{-2},scroll_{};
     float view_begin_{},view_end_{},drag_x_{},drag_begin_{};
-    bool open_{},dragging_{},dirty_{true};
+    bool open_{},dragging_{},dirty_{true},split_{true};
 };
 }
