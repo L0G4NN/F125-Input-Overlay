@@ -10,3 +10,5 @@ mkdir -p build
 ./build/udp_test
 "${CXX:-g++}" -std=c++20 -Wall -Wextra -Werror -Isrc tests/layout_test.cpp -o build/layout_test
 ./build/layout_test
+"${CXX:-g++}" -std=c++20 -Wall -Wextra -Werror -fsanitize=address,undefined -Isrc tests/receive_gate_test.cpp -o build/receive_gate_test
+./build/receive_gate_test

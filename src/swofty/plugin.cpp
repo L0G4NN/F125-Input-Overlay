@@ -4,6 +4,7 @@
 #include <swofty_api.h>
 #include "core/udp.hpp"
 #include "core/layout.hpp"
+#include "core/receive_gate.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
@@ -15,6 +16,7 @@ std::atomic<bool> enabled{true}, bars{true}, paused{false}, reset_requested{fals
 std::atomic<int> history{5}, width{420}, height{160}, opacity{25}, anchor{0}, horizontal{0}, vertical{0};
 SOCKET sock=INVALID_SOCKET;
 input_trace::Feed feed;
+input_trace::ReceiveGate receive_gate;
 bool attempted{}, socket_error{}, was_enabled=true;
 void settings(const char* id,const SwoftySettingValue* v,void*) {
     if(!v) return;
@@ -55,25 +57,36 @@ void open_socket() {
     }
 }
 void paint(SwoftyPaint* p,void*) {
-    if(reset_requested.exchange(false)) feed.clear();
+    const bool reset=reset_requested.exchange(false);
+    if(reset) feed.clear();
     bool on=enabled.load();
     if(!on) {
         if(sock!=INVALID_SOCKET) { closesocket(sock); sock=INVALID_SOCKET; WSACleanup(); }
         attempted=false; socket_error=false; feed.clear(); was_enabled=false; return;
     }
     if(!attempted) open_socket();
-    if(on!=was_enabled) {feed.clear(); was_enabled=on;}
+    if(on!=was_enabled) {feed.clear(); receive_gate=input_trace::ReceiveGate{}; was_enabled=on;}
     feed.trace.set_history(history.load());
-    if(paused.load()) feed.trace.pause(); else feed.trace.resume();
+    const bool is_paused=paused.load();
+    if(is_paused) feed.trace.pause(); else feed.trace.resume();
     const double now=double(GetTickCount64())/1000;
+    if(receive_gate.begin(now,reset,is_paused) && !is_paused) feed.trace.unavailable();
     if(sock!=INVALID_SOCKET) {
         unsigned char packet[2048];
+        bool drained=false;
         // Fixed receive budget: no blocking or unbounded drain in render callback.
         for(int n=0;n<128;++n) {
             int got=recv(sock,reinterpret_cast<char*>(packet),sizeof packet,0);
-            if(got==SOCKET_ERROR) break;
-            if(on && !paused.load()) feed.accept({packet,std::size_t(got)},now);
+            if(got==SOCKET_ERROR) {
+                const int error=WSAGetLastError();
+                if(error==WSAEMSGSIZE) { feed.trace.unavailable(); continue; }
+                if(error==WSAEWOULDBLOCK) { receive_gate.drained(); drained=true; }
+                else { receive_gate.exhausted(); feed.trace.unavailable(); }
+                break;
+            }
+            if(!is_paused && receive_gate.accept()) feed.accept({packet,std::size_t(got)},now);
         }
+        if(!drained) { receive_gate.exhausted(); feed.trace.unavailable(); }
     }
     if(!on) return;
     feed.tick(now);
@@ -142,7 +155,7 @@ void start() {
 }
 extern "C" __declspec(dllexport) const uint32_t SwoftyAddonApi=5;
 extern "C" __declspec(dllexport) int SwoftyAddonInit(const SwoftyApi* a) {
-    if(!a || a->version<5 || !a->overlay || !a->register_mixins) return 0;
+    if(!a || a->version<5 || !a->overlay || !a->events || !a->register_mixins || !a->log) return 0;
     api=a;
     static const SwoftyMixin load={nullptr,SWOFTY_MIXIN_ON_LOAD,0,reinterpret_cast<void*>(&start),nullptr};
     return a->register_mixins(&load,1);

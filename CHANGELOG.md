@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.4
+
+- Preserve session identity and frame ordering across resets and player changes.
+- Break traces on invalid current inputs and discard queued packets after interruptions.
+- Add receiver recovery regression tests, stricter slider validation and `.swoftyaddon` packaging.
+- Record Swofty reference conformance and remaining runtime validation.
+
 ## 0.1.3
 
 - Added persistent native horizontal/vertical position settings alongside width, height and corner.

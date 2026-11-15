@@ -16,39 +16,48 @@ struct Pedals {
 };
 // EA F1 25 v3: packed little-endian header 29 bytes, packet 6 v1,
 // 22 car entries of 60 bytes, 3 trailing panel/gear bytes.
-inline bool decode(std::span<const unsigned char> p, Pedals& out) {
+inline bool decode_header(std::span<const unsigned char> p, Pedals& out) {
     if(p.size()!=1352 || (unsigned(p[0]) | unsigned(p[1])<<8)!=2025 ||
        p[2]!=25 || p[5]!=1 || p[6]!=6 || p[27]>=22 || p[28]!=255) return false;
-    const auto* car=p.data()+29+60*p[27];
-    const float t=f32(p.data()+15), throttle=f32(car+2), brake=f32(car+10);
-    if(!std::isfinite(t) || t<0 || !std::isfinite(throttle) || !std::isfinite(brake) ||
-       throttle<0 || throttle>1 || brake<0 || brake>1) return false;
+    const float t=f32(p.data()+15);
+    if(!std::isfinite(t) || t<0) return false;
     out={std::uint64_t(u32(p.data()+7)) | std::uint64_t(u32(p.data()+11))<<32,
-         u32(p.data()+23), p[27], t, throttle, brake};
+         u32(p.data()+23), p[27], t, 0, 0};
     return true;
+}
+inline bool decode(std::span<const unsigned char> p, Pedals& out) {
+    if(!decode_header(p,out)) return false;
+    const auto* car=p.data()+29+60*out.player;
+    out.throttle=f32(car+2); out.brake=f32(car+10);
+    return std::isfinite(out.throttle) && std::isfinite(out.brake) &&
+           out.throttle>=0 && out.throttle<=1 && out.brake>=0 && out.brake<=1;
 }
 class Feed {
 public:
     Trace<> trace;
     bool accept(std::span<const unsigned char> bytes, double wall) {
         Pedals next{};
-        if(!decode(bytes,next)) return false;
+        if(!decode_header(bytes,next) || !std::isfinite(wall)) return false;
         for(auto old:retired_) if(old && old==next.session) return false;
+        if(have_ && next.session==session_ &&
+           (next.frame==frame_ || std::uint32_t(next.frame-frame_)>=0x80000000u)) return false;
         if(have_ && next.session!=session_) { retired_[retired_pos_++ % retired_.size()]=session_; }
         if(!have_ || next.session!=session_ || next.player!=player_) {
             trace.clear(); have_=false;
         }
         // Overall frame counter does not rewind during flashbacks. Drop old or
         // duplicate datagrams; unsigned arithmetic also handles counter wrap.
-        if(have_ && (next.frame==frame_ || std::uint32_t(next.frame-frame_)>=0x80000000u)) return false;
         session_=next.session; player_=next.player; frame_=next.frame; have_=true;
         if(trace.state()==State::paused) return false;
+        if(!decode(bytes,next)) { trace.unavailable(); return false; }
         if(have_ && wall-last_>.5) trace.unavailable();
         if(trace.append(next.time,next.throttle,next.brake)) { last_=wall; return true; }
         return false;
     }
     void tick(double wall) { if(have_ && trace.state()!=State::paused && wall-last_>.5) trace.unavailable(); }
-    void clear() { trace.clear(); have_=false; }
+    // Keep source identity and ordering across lifecycle resets. A restart with
+    // the same UID can rewind time while its overall frame continues forward.
+    void clear() { trace.clear(); }
 private:
     std::array<std::uint64_t,64> retired_{};
     std::size_t retired_pos_{};

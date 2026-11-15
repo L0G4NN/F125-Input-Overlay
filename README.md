@@ -1,8 +1,8 @@
 # F1 25 Input Overlay
 
-A planned Swofty Launcher addon for F1 25 that displays a scrolling throttle and brake trace, inspired by the input overlays used in sim racing.
+A Swofty Launcher addon for F1 25 that displays a scrolling throttle and brake trace, inspired by the input overlays used in sim racing.
 
-**Status: experimental 0.1.3 import package built. Native Windows overlay and UDP input adapter implemented; actual Swofty import and in-game validation remain pending.**
+**Status: experimental 0.1.4 import package built. Native Windows overlay and UDP input adapter implemented; actual Swofty import and in-game validation remain pending.**
 
 See [installation and telemetry settings](docs/INSTALL.md). The ZIP contains a compiled DLL; the GitHub source ZIP is not the install package.
 
@@ -24,7 +24,7 @@ The implementation uses Swofty's experimental overlay API and a loopback UDP rec
 
 No compatibility or performance claims have been validated in game. Linux/Proton, VR, split-screen, multiplayer and the 2026 Season Pack are outside the initial support claim.
 
-Repository: [L0G4NN/F125-Input-Overlay](https://github.com/L0G4NN/F125-Input-Overlay) (private).
+Repository: [L0G4NN/F125-Input-Overlay](https://github.com/L0G4NN/F125-Input-Overlay).
 
 ## Start here
 
@@ -51,7 +51,9 @@ There are no automated GitHub Actions workflows yet. Add focused checks when the
 
 ## Ownership
 
-Private project maintained by L0G4NN. Original project material is reserved under [LICENSE](LICENSE).
-No game assets or upstream SDK files are included. This project is not affiliated with EA, Codemasters, Formula 1, iRacing or Swofty.
+Project maintained by L0G4NN. Original project material is reserved under [LICENSE](LICENSE).
+No game assets are included. The vendored SDK header retains its MIT licence. This project is not affiliated with EA, Codemasters, Formula 1, iRacing or Swofty.
 
 Position and size are adjustable through ADDON SETTINGS: Width, Height, Corner, Horizontal position and Vertical position. See docs/INSTALL.md for the percentage-based placement controls.
+
+See [reference conformance review](docs/CONFORMANCE.md) for checked API contracts and outstanding runtime checks.
