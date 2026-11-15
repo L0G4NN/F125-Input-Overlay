@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — packet validation hardening
+
+- Reject invalid pedals before session/frame tracking changes; preserve gap indication only for newer packets from the established player.
+- Decode each header and pedal pair once, with no new allocations or history storage.
+- Ignore paused input before session tracking changes; add poisoning and recovery regressions.
+
 ## 0.1.4
 
 - Preserve session identity and frame ordering across resets and player changes.
