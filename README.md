@@ -9,8 +9,6 @@ See how you apply throttle and brake while driving in F1 25, then compare record
 
 The display uses game-reported inputs, not pedal force or raw hardware readings. It does not provide driving assistance or change car behaviour.
 
-**Experimental: current source version 0.2.2. Actual Swofty import and in-game behaviour still need validation.** The initial target is offline single-player. Multiplayer, VR, Linux/Proton, split-screen and the 2026 Season Pack are outside the current support claim.
-
 ## Preview
 
 ### F8 lap comparison
