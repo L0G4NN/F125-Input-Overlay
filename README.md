@@ -11,13 +11,13 @@ The display uses game-reported inputs, not pedal force or raw hardware readings.
 
 ## Preview
 
+### Live inputs
+
+![Live throttle and brake overlay](docs/images/Bahrain-T1-Live-Overlay.png)
+
 ### F8 lap comparison
 
 ![Bahrain lap comparison](docs/images/Bahrain-F8-Overlay.png)
-
-### Live inputs at Turn 1
-
-![Live throttle and brake overlay](docs/images/Bahrain-T1-Live-Overlay.png)
 
 ## Install and start driving
 
