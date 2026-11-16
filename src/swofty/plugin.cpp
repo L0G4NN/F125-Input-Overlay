@@ -19,7 +19,7 @@ std::atomic<int> history{5}, width{420}, height{160}, opacity{25}, anchor{0}, ho
 SOCKET sock=INVALID_SOCKET;
 input_trace::Feed feed;
 input_trace::ReceiveGate receive_gate;
-input_trace::review::Recorder recorder;
+input_trace::review::MultiRecorder recorder;
 input_trace::review::Panel review_panel;
 bool review_supported{};
 input_trace::PauseReviewGate pause_review;

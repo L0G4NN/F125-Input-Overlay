@@ -11,6 +11,8 @@ The display uses game-reported inputs, not pedal force or raw hardware readings.
 
 ## Preview
 
+These previews show the earlier single-driver layout; the current X/Y driver selectors are described below.
+
 ### Live inputs
 
 ![Live throttle and brake overlay](docs/images/Bahrain-T1-Live-Overlay.png)
@@ -49,11 +51,13 @@ Open **ADDON SETTINGS → F1 25 Input Overlay** in Swofty to change history, inp
 
 Choose a corner, then move inward with **Horizontal position** and **Vertical position**: 0% stays at the selected corner, 50% centres that axis, and 100% reaches the opposite edge. The panel stays inside the screen. Mouse dragging is not available.
 
-## Compare your laps
+## Compare driver laps
 
 Leave **Record session laps in memory** on while driving. Pause during the session (or return to the garage unpaused), release held controls, and press **F8** while the game window is active.
 
-Select **X** and **Y** beside completed laps. X is cyan and Y is amber, with separate comparison graphs for throttle and brake. Scroll over a graph to zoom, drag to pan, and use **Reset view** to fit the lap. Press **Escape**, **Close**, or your review key to return to the game. The review key can be changed to F6–F12.
+Choose drivers independently with the **X >** and **Y >** buttons. Use **Laps: X driver / Y driver** to choose whose list to browse, then select **X** and **Y** beside completed laps. X is cyan and Y is amber, with separate comparison graphs for throttle and brake. Scroll over a graph to zoom, drag to pan, and use **Reset view** to fit the lap. Press **Escape**, **Close**, or your review key to return to the game. The review key can be changed to F6–F12.
+
+**Detailed traces share 128 slots across the whole field**, including active laps; later laps show **NO TRACE** but retain timing. With 22 cars this covers roughly the first five to six laps per car. Slip and aero data remain player-only; restricted opponent ERS is shown as unavailable. See [multi-driver review](docs/MULTI_DRIVER_REVIEW.md) for limits and validation.
 
 Recorded laps stay in memory only. Exiting the game or a session reset clears them. A detected rewind preserves earlier laps and the affected lap’s prefix, discarding the abandoned suffix and later laps. There is no save or export feature. See the [full user guide](docs/INSTALL.md#review-and-compare-laps) for controls and recording limits.
 

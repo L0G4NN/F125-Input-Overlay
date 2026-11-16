@@ -3,18 +3,20 @@
 #define VK_ESCAPE 27
 #include "swofty/review_panel.hpp"
 #include "review_fixture.hpp"
+#include "multi_fixture.hpp"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 using namespace input_trace::review;
 namespace {
+bool opponent_selected=false,unavailable_hint=false;
 SwoftyInput input{}; int sectors=0; int glyphs=0; bool amber=false,cyan=false; int focus_calls=0, lines=0, texts=0,rects=0, input_calls=0; bool focused=false; int focus_result=SWOFTY_ASSET_OK;
 int read_input(const SwoftyPaint*,SwoftyInput* out) { ++input_calls; *out=input; out->focused=focused; return SWOFTY_ASSET_OK; }
 int focus(int on) { ++focus_calls; if(focus_result==SWOFTY_ASSET_OK || !on) focused=on!=0; return focus_result; }
 void size(const SwoftyPaint*,float* w,float* h) {*w=1920;*h=1080;}
 void rect(SwoftyPaint*,float,float,float,float,uint32_t) {++rects;}
 void line(SwoftyPaint*,float x,float y,float a,float b,float,uint32_t colour) {if(colour==0xffffff80) ++sectors;if(colour==0xffbd59ff) amber=true;if(colour==0x55d9ffff) cyan=true;if(!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(a)||!std::isfinite(b))std::abort();++lines;}
-void text(SwoftyPaint*,float,float,float,uint32_t,const char* str) {++texts;glyphs+=int(std::strlen(str));}
+void text(SwoftyPaint*,float,float,float,uint32_t,const char* str) {++texts;glyphs+=int(std::strlen(str));if(std::strstr(str,"Y: Driver 2 / lap 1"))opponent_selected=true;if(std::strstr(str,"Player-only"))unavailable_hint=true;}
 void check(bool ok) {if(!ok)std::abort();}
 }
 int main() {
@@ -84,5 +86,30 @@ int main() {
         input={};input.x=1000;input.y=300;lines=rects=glyphs=sectors=0;amber=cyan=false;paint();
         check(amber && cyan && sectors>0 && 6*(lines+rects+glyphs)<16384);
     }
+    // Drive the real independent driver selectors, then a same-number lap in
+    // another car. Input policy remains the same and missing player-only data is explicit.
+    p.close(&ov);
+    auto grid=std::make_unique<MultiRecorder>();check(grid->initialize());
+    grid->accept(fixture::session(),0);grid->accept(multi_fixture::participants(),.01);
+    multi_fixture::pair_grid(*grid,2,.02f,1,0);
+    multi_fixture::pair_grid(*grid,3,.03f,1,32);
+    grid->accept(fixture::motion_extra(3,.03f),.03);
+    multi_fixture::pair_grid(*grid,4,.04f,1,998);
+    multi_fixture::pair_grid(*grid,5,.05f,2,0);
+    Panel cross;
+    auto draw_grid=[&]{cross.paint(&api,nullptr,*grid,.05,true,true,119,true);};
+    input={};input.keys_pressed[119/8]|=1u<<(119%8);draw_grid();check(cross.open());
+    input={};input.x=380;input.y=130;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid(); // Y driver -> car 2
+    input={};input.x=580;input.y=215;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid(); // Y lap 1
+    input={};lines=rects=glyphs=0;amber=cyan=false;draw_grid();
+    check(opponent_selected && amber && cyan && 6*(lines+rects+glyphs)<16384);
+    input={};input.x=60+610+3*230;input.y=180;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();
+    input={};lines=rects=glyphs=0;amber=cyan=false;draw_grid();
+    check(unavailable_hint && cyan && !amber && 6*(lines+rects+glyphs)<16384);
+    auto roster=multi_fixture::participants(6,.06f);grid->accept(roster,.06);draw_grid();
+    check(cross.open()); // unchanged 5-second roster updates never close or reset the UI
+    // A valid global rewind hides an opponent's stale future while its metadata is missing.
+    auto rewind=fixture::pedals(7,.001f);grid->accept(rewind,.07);draw_grid();
+    check(!cross.open() && grid->driver(1).size()==0);
     std::cout<<"Panel focus, feature-gating and draw-budget checks passed\n";
 }

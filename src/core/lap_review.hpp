@@ -25,26 +25,44 @@ struct Meta {
     unsigned lap{}, last_ms{}, driver{};
     bool invalid{};
 };
+// One shared allocator for all cars. Stamps never repeat, even across slot reuse.
+struct TracePool {
+    Bin bins[trace_limit+1][bins_per_lap]{};
+    std::array<bool,trace_limit> used{};
+    unsigned stamp{};
+    unsigned acquire() {
+        for(unsigned i=0;i<trace_limit;++i) if(!used[i]) {used[i]=true;return i;}
+        return unsigned(trace_limit);
+    }
+    void release(const Lap& lap) { if(!lap.limited && lap.slot<trace_limit) used[lap.slot]=false; }
+};
 // One render owner. Allocate/zero the pool once in ON_LOAD, never in paint.
 // Generation stamps make lap starts, session resets and finalization constant-time.
 class Recorder {
-    struct Pool { Bin bins[trace_limit+1][bins_per_lap]{}; };
     struct Pair { Meta meta{}; Pedals pedals{}; double mw{}, pw{}; bool m{}, p{}; };
 public:
-    bool initialize() { if(!pool_) pool_.reset(new(std::nothrow) Pool); return bool(pool_) && extras_.initialize(); }
+    bool initialize() { if(!pool_) { owned_.reset(new(std::nothrow) TracePool); pool_=owned_.get(); } return bool(pool_) && extras_.initialize(); }
+    void attach(TracePool& pool,ExtraPool& extra) {pool_=&pool;extras_.attach(extra);}
     void reset() {
-        count_=stored_=0; active_=false; session_=false; garage_=false; lap_seen_=false; rewound_=false; finished_=false; rewind_pending_=false;
+        release_all();
+        count_=0; active_=false; session_=false; garage_=false; lap_seen_=false; rewound_=false; finished_=false; rewind_pending_=false;
         extras_.gap(); sectors_={}; pairs_={}; seen_={}; broken_=true; have_sample_=false; ++generation_; // pool stamps are never reused
     }
     void gap() { extras_.gap(); broken_=true; if(active_) current_.partial=true; pairs_={}; }
-    void set_recording(bool on) { if(recording_!=on) { recording_=on; active_=false; pairs_={}; extras_.gap(); } }
-    std::size_t size() const { return count_; }
+    void set_recording(bool on) { if(recording_!=on) { recording_=on; release_current(); active_=false; pairs_={}; extras_.gap(); } }
+    std::size_t size() const { return rewind_pending_?0:count_; }
     const Lap& lap(std::size_t i) const { return laps_[i]; }
     const Bin* bin(const Lap& l,std::size_t i) const {
         if(!pool_ || l.limited || l.slot>trace_limit || i>=bins_per_lap) return nullptr;
         const auto& b=pool_->bins[l.slot][i];
         return b.stamp==l.stamp && !(b.broken&1) ? &b : nullptr;
     }
+    unsigned driver_count() const {return 1;}
+    unsigned driver_index(unsigned) const {return 0;}
+    unsigned player_index() const {return 0;}
+    const Recorder& driver(unsigned) const {return *this;}
+    const char* driver_name(unsigned) const {return "Player";}
+    const char* driver_hint(unsigned,int) const {return "";}
     bool recording() const { return recording_; }
     bool session_ready() const { return session_; }
     bool available() const { return bool(pool_); }
@@ -54,18 +72,31 @@ public:
     bool garage(double now) const { return fresh_lap(now) && garage_; }
     bool on_track(double now) const { return fresh_lap(now) && !garage_; }
     bool metadata_limit() const { return count_==lap_limit; }
-    static constexpr std::size_t storage_bytes() { return sizeof(Pool)+ExtraStore::storage_bytes(); }
+    static constexpr std::size_t storage_bytes() { return sizeof(TracePool)+ExtraStore::storage_bytes(); }
     float sector(unsigned i) const { return i<2?sectors_[i]:0; }
     bool steering(double now,float& degrees) const { return extras_.steering(now,degrees); }
     const ExtraBin* extra(const Lap& lap,unsigned channel,unsigned index) const {
         return lap.limited?nullptr:extras_.bin(lap.slot,lap.stamp,channel,index);
     }
+    // A valid rewind from another car invalidates this car's future too. Hide
+    // its history until its own valid lap metadata locates the retained prefix.
+    void request_rewind(const Pedals& h) {
+        rewind_pending_=true;pairs_={};extras_.gap();++generation_;finished_=false;
+        for(auto& t:times_) t=h.time;
+        rewind_frame_=h.frame;rewound_=true;
+    }
     // Fully validate each packet before committing identity, ordering or lap state.
-    void accept(std::span<const unsigned char> p,double wall) {
+    void accept(std::span<const unsigned char> p,double wall,unsigned car=22) {
+        if(car>22) return;
+        auto header=[&](Pedals& h,unsigned id,std::size_t size) {
+            if(!decode_common(p,h,id,size)) return false;
+            if(car<22) h.player=car;
+            return true;
+        };
         if(!std::isfinite(wall) || p.size()<29) return;
         Pedals h{}; unsigned stream=0;
         if(p[6]==1) {
-            if(!decode_common(p,h,1,753)) return;
+            if(!header(h,1,753)) return;
             unsigned len=unsigned(p[33]) | unsigned(p[34])<<8;
             if(len<100 || len>bins_per_lap*2 || p[36]>127 || p[44]!=0 || p[154]!=0) return;
             for(auto old:retired_) if(old && old==h.session) return;
@@ -82,7 +113,7 @@ public:
         }
         if(p[6]==8) {
             if(rewind_pending_) return;
-            if(!decode_common(p,h,8,1042) || !session_ || h.session!=uid_ || h.player!=player_ ||
+            if(!header(h,8,1042) || !session_ || h.session!=uid_ || h.player!=player_ ||
                p[29]>22 || h.player>=p[29] || !newer(3,h.frame)) return;
             const auto* c=p.data()+30+46*h.player;
             if(c[5]>7 || c[1]==0) return;
@@ -93,30 +124,26 @@ public:
         }
         Meta m{}; ExtraPacket extended{}; bool have_extra=false;
         if(p[6]==2) {
-            if(!decode_common(p,h,2,1285)) return;
+            if(!header(h,2,1285)) return;
             const auto* c=p.data()+29+57*h.player;
             float d=f32(c+20);
             if(!std::isfinite(d) || d < -2000 || d>length_+100 || c[33]==0 || c[37]>1 || c[44]>4 || u32(c)>3600000) return;
             m={h,d,c[33],u32(c),c[44],c[37]!=0}; stream=1;
         } else if(p[6]==6) {
-            if(!decode_header(p,h)) return;
+            if(!header(h,6,1352)) return;
             if(!decode_pedals(p,h)) {
                 if(session_ && h.session==uid_ && h.player==player_ && newer(2,h.frame)) gap();
                 return;
             }
-            stream=2; have_extra=decode_extra(p,extended);
+            stream=2; have_extra=decode_extra(p,extended,car);
         } else if(p[6]==7 || p[6]==13) {
-            if(!decode_extra(p,extended)) return;
+            if(!decode_extra(p,extended,car)) return;
             h=extended.h;stream=p[6]==7?4:5;have_extra=true;
         } else return;
         if(!session_ || h.session!=uid_ || h.player!=player_ || !newer(stream,h.frame)) return;
         if(rewound_ && h.frame!=rewind_frame_ && std::uint32_t(h.frame-rewind_frame_)>=0x80000000u) return;
-        if((seen_[stream] && h.time<times_[stream]) || (stream==1 && active_ && m.lap<current_.number)) {
-            // Wait for lap metadata to locate the exact abandoned suffix.
-            rewind_pending_=true; pairs_={}; extras_.gap(); ++generation_; finished_=false;
-            for(auto& t:times_) t=h.time;
-            rewind_frame_=h.frame; rewound_=true;
-            // Keep all stream frame counters: delayed pre-rewind packets remain ordered.
+        if(!rewind_pending_ && ((seen_[stream] && h.time<times_[stream]) || (stream==1 && active_ && m.lap<current_.number))) {
+            request_rewind(h);
         }
         remember(stream,h);
         if(rewind_pending_) {
@@ -128,13 +155,14 @@ public:
             if(!recording_ || !pool_ || finished_) return;
             if(active_ && m.lap!=current_.number) {
                 if(m.lap==current_.number+1) finish(m.last_ms); // skipped transitions are never invented as completed laps
+                else release_current();
                 active_=false;
             }
             if(!active_) {
                 // Epoch wrap is practically unreachable; stop recording rather than reuse stamps.
-                if(stamp_==UINT32_MAX) { recording_=false; return; }
-                current_={}; current_.number=m.lap; current_.stamp=++stamp_;
-                current_.slot=unsigned(stored_); current_.limited=stored_>=trace_limit;
+                if(pool_->stamp==UINT32_MAX) { recording_=false; return; }
+                current_={}; current_.number=m.lap; current_.stamp=++pool_->stamp;
+                current_.slot=pool_->acquire(); current_.limited=current_.slot>=trace_limit;
                 current_.partial=m.distance>20 || m.distance<0;
                 current_.first=m.distance; current_.last=m.distance;
                 active_=true; broken_=true; have_sample_=false;
@@ -165,8 +193,10 @@ private:
         std::size_t keep=0;
         while(keep<count_ && laps_[keep].number<m.lap) ++keep;
         if(!found && keep<count_ && laps_[keep].number==m.lap) {retained=laps_[keep];found=true;}
-        count_=keep;stored_=0;
-        for(std::size_t i=0;i<count_;++i) if(!laps_[i].limited) ++stored_;
+        if(active_ && (!found || current_.stamp!=retained.stamp)) release_current();
+        if(pool_) for(std::size_t i=keep;i<count_;++i)
+            if(!found || laps_[i].stamp!=retained.stamp) pool_->release(laps_[i]);
+        count_=keep;
         active_=found; have_sample_=false;broken_=true;pairs_={};extras_.gap();
         if(!found) return;
         current_=retained;current_.time_ms=0;current_.partial=true;
@@ -180,10 +210,9 @@ private:
     }
     void finish(unsigned ms) {
         extras_.seal(current_.stamp);
-        if(count_==lap_limit) return;
+        if(count_==lap_limit) {release_current();return;}
         current_.partial|=!have_sample_ || current_.last<length_-100;
         current_.time_ms=ms; laps_[count_++]=current_;
-        if(!current_.limited) ++stored_;
     }
     bool newer(unsigned i,std::uint32_t frame) const {
         return !seen_[i] || (frame!=frames_[i] && std::uint32_t(frame-frames_[i])<0x80000000u);
@@ -211,7 +240,13 @@ private:
         }
         current_.last=m.distance; last_time_=p.time; have_sample_=true; broken_=false;
     }
-    std::unique_ptr<Pool> pool_;
+    void release_current() { if(pool_ && active_) pool_->release(current_); }
+    void release_all() {
+        release_current();
+        if(pool_) for(std::size_t i=0;i<count_;++i) pool_->release(laps_[i]);
+    }
+    std::unique_ptr<TracePool> owned_;
+    TracePool* pool_{};
     ExtraStore extras_;
     std::array<float,2> sectors_{};
     std::array<Lap,lap_limit> laps_{};
@@ -221,9 +256,9 @@ private:
     std::array<double,6> times_{};
     std::array<bool,6> seen_{};
     Lap current_{};
-    std::size_t count_{}, stored_{}, retire_pos_{};
+    std::size_t count_{}, retire_pos_{};
     std::uint64_t uid_{};
-    unsigned player_{}, track_{}, stamp_{}, generation_{};
+    unsigned player_{}, track_{}, generation_{};
     std::uint32_t rewind_frame_{};
     bool rewound_{}, finished_{}, rewind_pending_{};
     float length_{};

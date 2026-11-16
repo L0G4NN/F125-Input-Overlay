@@ -8,11 +8,12 @@ constexpr unsigned extra_channels=14, extra_bins=1024;
 struct ExtraBin { float lo{},hi{}; std::uint32_t stamp{},link{}; };
 struct ExtraPacket { Pedals h{}; float values[extra_channels]{}; unsigned mask{},group{}; float steering{}; bool steering_valid{}; };
 // EA 2025 v3 packed offsets. No casts to potentially unaligned structures.
-inline bool decode_extra(std::span<const unsigned char> p,ExtraPacket& out) {
-    if(p.size()<29) return false;
+inline bool decode_extra(std::span<const unsigned char> p,ExtraPacket& out,unsigned car=22) {
+    if(p.size()<29 || car>22) return false;
     out={};
     if(p[6]==6) {
         if(!decode_common(p,out.h,6,1352)) return false;
+        if(car<22) out.h.player=car;
         auto c=p.data()+29+60*out.h.player;
         out.values[0]=float(unsigned(c[0])|unsigned(c[1])<<8);
         out.values[1]=float(std::bit_cast<std::int8_t>(c[15]));
@@ -20,6 +21,7 @@ inline bool decode_extra(std::span<const unsigned char> p,ExtraPacket& out) {
         out.mask=3;out.group=0;
     } else if(p[6]==7) {
         if(!decode_common(p,out.h,7,1239)) return false;
+        if(car<22) out.h.player=car;
         auto c=p.data()+29+55*out.h.player;
         out.values[2]=f32(c+33)/1000.f; // MGU-K power W -> kW
         out.values[3]=f32(c+50)/1000000.f; // cumulative deployed energy J -> MJ
@@ -27,7 +29,7 @@ inline bool decode_extra(std::span<const unsigned char> p,ExtraPacket& out) {
            !std::isfinite(out.values[3]) || out.values[3]<0 || out.values[3]>100) return false;
         out.mask=12;out.group=1;
     } else if(p[6]==13) {
-        if(!decode_common(p,out.h,13,273)) return false;
+        if(!decode_common(p,out.h,13,273) || (car<22 && car!=out.h.player)) return false;
         for(unsigned i=0;i<4;++i) {
             out.values[4+i]=f32(p.data()+93+4*i); // signed slip ratio
             out.values[8+i]=f32(p.data()+109+4*i);
@@ -44,14 +46,15 @@ inline bool decode_extra(std::span<const unsigned char> p,ExtraPacket& out) {
 }
 // Extra channels use 16 m extrema bins; the existing pedals retain 2 m bins.
 // Single owner, fixed startup allocation, no work proportional to completed laps.
+struct ExtraPool { ExtraBin bins[129][extra_channels][extra_bins]{}; };
 class ExtraStore {
-    struct Pool { ExtraBin bins[129][extra_channels][extra_bins]{}; };
     struct Meta { unsigned slot{},stamp{}; float distance{},length{}; double time{},wall{}; bool valid{}; };
     struct Pending { std::uint32_t frame{}; bool used{}; Meta meta{}; ExtraPacket packets[3]{}; double wall[3]{}; bool have[3]{},done[3]{}; };
     struct Previous { unsigned stamp{},slot{},bin{}; double time{}; float distance{}; bool valid{}; };
 public:
-    bool initialize() { if(!pool_) pool_.reset(new(std::nothrow) Pool);return bool(pool_); }
-    static constexpr std::size_t storage_bytes() { return sizeof(Pool); }
+    bool initialize() { if(!pool_) { owned_.reset(new(std::nothrow) ExtraPool);pool_=owned_.get(); } return bool(pool_); }
+    void attach(ExtraPool& pool) { pool_=&pool; }
+    static constexpr std::size_t storage_bytes() { return sizeof(ExtraPool); }
     void gap() { pending_={}; previous_={}; steering_valid_=false; }
     void truncate(unsigned slot,unsigned stamp,float distance) {
         gap();
@@ -104,7 +107,8 @@ private:
             }
         }
     }
-    std::unique_ptr<Pool> pool_;
+    std::unique_ptr<ExtraPool> owned_;
+    ExtraPool* pool_{};
     std::array<Pending,8> pending_{};
     std::array<Previous,extra_channels> previous_{};
     double steering_wall_{};float steering_{};bool steering_valid_{};

@@ -20,3 +20,5 @@ mkdir -p build
 ./build/hud_visibility_test
 "${CXX:-g++}" -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined,float-cast-overflow -fno-omit-frame-pointer -Isrc tests/extended_test.cpp -o build/extended_test
 ./build/extended_test
+"${CXX:-g++}" -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined,float-cast-overflow -fno-omit-frame-pointer -Isrc tests/multi_review_test.cpp -o build/multi_review_test
+./build/multi_review_test

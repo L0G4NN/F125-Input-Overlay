@@ -7,6 +7,9 @@ struct Plot {
     Column series[4][columns]{};
     float low[2]{0,0},high[2]{1,1};
     void build(const Recorder& r,int x,int y,float begin,float end,int channel0=-1,int channel1=-1) {
+        build(r,x,r,y,begin,end,channel0,channel1);
+    }
+    void build(const Recorder& rx,int x,const Recorder& ry,int y,float begin,float end,int channel0=-1,int channel1=-1) {
         *this={};
         if(!std::isfinite(begin) || !std::isfinite(end) || end<=begin) return;
         bool ext=channel0>=0;
@@ -15,6 +18,7 @@ struct Plot {
         const auto count=ext?extra_bins:bins_per_lap;
         bool have[2]{};
         for(int selection=0;selection<2;++selection) {
+            const auto& r=selection?ry:rx;
             int idx=selection?y:x;
             if(idx<0 || std::size_t(idx)>=r.size()) continue;
             const auto& lap=r.lap(std::size_t(idx));
