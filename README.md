@@ -11,6 +11,16 @@ The display uses game-reported inputs, not pedal force or raw hardware readings.
 
 **Experimental: current source version 0.2.2. Actual Swofty import and in-game behaviour still need validation.** The initial target is offline single-player. Multiplayer, VR, Linux/Proton, split-screen and the 2026 Season Pack are outside the current support claim.
 
+## Preview
+
+### F8 lap comparison
+
+![Bahrain lap comparison](docs/images/Bahrain-F8-Overlay.png)
+
+### Live inputs at Turn 1
+
+![Live throttle and brake overlay](docs/images/Bahrain-T1-Live-Overlay.png)
+
 ## Install and start driving
 
 You need F1 25 on Windows x64 and Swofty Launcher 1.3.7 or newer, with its experimental overlay feature permitted. Lap review also requires a Swofty core with overlay input v3.
