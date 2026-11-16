@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Remove the extra pixel below F8 extrema markers to avoid protruding trace edges without changing recorded values or geometry budgets.
+- Add Bahrain F8 and live overlay previews to the README.
+
 ## 0.3.0 — Extended telemetry graphs
 
 - Add dashed S2/S3 markers from validated session distances on every review page.
