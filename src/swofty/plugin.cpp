@@ -22,6 +22,7 @@ input_trace::ReceiveGate receive_gate;
 input_trace::review::Recorder recorder;
 input_trace::review::Panel review_panel;
 bool review_supported{};
+input_trace::PauseReviewGate pause_review;
 using PauseQuery=std::uint32_t (*)();
 PauseQuery pause_query{};
 bool attempted{}, socket_error{}, was_enabled=true;
@@ -68,14 +69,14 @@ void open_socket() {
 }
 void paint(SwoftyPaint* p,void*) {
     const bool reset=reset_requested.exchange(false);
-    if(reset) { feed.clear(); recorder.reset(); if(review_supported) review_panel.close(api->overlay); }
+    if(reset) { pause_review.reset(); feed.clear(); recorder.reset(); if(review_supported) review_panel.close(api->overlay); }
     bool on=enabled.load();
     if(!on) {
         if(sock!=INVALID_SOCKET) { closesocket(sock); sock=INVALID_SOCKET; WSACleanup(); }
         attempted=false; socket_error=false; feed.clear();
         recorder.set_recording(false); recorder.gap();
         if(review_supported) review_panel.close(api->overlay);
-        was_enabled=false; return;
+        pause_review.reset(); was_enabled=false; return;
     }
     if(!attempted) open_socket();
     if(on!=was_enabled) {feed.clear(); recorder.reset(); receive_gate=input_trace::ReceiveGate{}; was_enabled=on;}
@@ -109,7 +110,8 @@ void paint(SwoftyPaint* p,void*) {
     feed.tick(now);
     float sw=0,sh=0; auto ov=api->overlay; ov->size(p,&sw,&sh);
     if(sw<1 || sh<1) { if(review_supported) review_panel.close(ov); return; }
-    const bool review_safe=input_trace::review_interactive(is_paused,recorder.garage(now));
+    const bool paused_session=pause_review.update(is_paused,recorder.fresh_lap(now));
+    const bool review_safe=input_trace::review_interactive(is_paused,recorder.garage(now),paused_session);
     DWORD foreground_pid=0;
     if(review_supported && review_safe) GetWindowThreadProcessId(GetForegroundWindow(),&foreground_pid);
     review_panel.paint(api,p,recorder,now,review_safe,

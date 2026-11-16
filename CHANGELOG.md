@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Restore F8 during pauses entered from a live session, keeping held-control checks.
+- Roll back only abandoned lap data after rewinds, preserving earlier laps and prefix samples across all channels.
+
 - Show a text-only Waiting for UDP status before telemetry arrives; do not draw an empty or stale graph.
 
 - Remove the extra pixel below F8 extrema markers to avoid protruding trace edges without changing recorded values or geometry budgets.
@@ -41,6 +44,9 @@
 
 ## Unreleased
 
+- Restore F8 during pauses entered from a live session, keeping held-control checks.
+- Roll back only abandoned lap data after rewinds, preserving earlier laps and prefix samples across all channels.
+
 - Show a text-only Waiting for UDP status before telemetry arrives; do not draw an empty or stale graph. — packet validation hardening
 
 - Reject invalid pedals before session/frame tracking changes; preserve gap indication only for newer packets from the established player.
@@ -68,6 +74,9 @@
 - Compiled and inspected; real Swofty import and game testing remain pending.
 
 ## Unreleased
+
+- Restore F8 during pauses entered from a live session, keeping held-control checks.
+- Roll back only abandoned lap data after rewinds, preserving earlier laps and prefix samples across all channels.
 
 - Show a text-only Waiting for UDP status before telemetry arrives; do not draw an empty or stale graph.
 

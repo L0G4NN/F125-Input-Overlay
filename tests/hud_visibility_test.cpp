@@ -10,6 +10,14 @@ int main() {
     assert(!show_waiting_hud(true,false)); // pause/flashback
     assert(!show_waiting_hud(true,true));
 
+    PauseReviewGate gate;
+    assert(!gate.update(false,true));
+    assert(gate.update(true,true));
+    assert(gate.update(true,false)); // paused UDP can expire
+    assert(review_interactive(true,false,true));
+    assert(!gate.update(false,true)); // resume releases paused access
+    assert(!gate.update(true,false)); // main menu/stale context cannot open
+    gate.reset();assert(!gate.update(true,false));
     assert(review_interactive(false,true));
     assert(!review_interactive(false,false));
     assert(!review_interactive(true,false)); // replay/flashback pause is not a review context

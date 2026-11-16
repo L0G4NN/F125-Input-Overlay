@@ -1,5 +1,6 @@
 #pragma once
 #include "udp.hpp"
+#include <algorithm>
 #include <memory>
 #include <new>
 namespace input_trace::review {
@@ -52,6 +53,14 @@ public:
     bool initialize() { if(!pool_) pool_.reset(new(std::nothrow) Pool);return bool(pool_); }
     static constexpr std::size_t storage_bytes() { return sizeof(Pool); }
     void gap() { pending_={}; previous_={}; steering_valid_=false; }
+    void truncate(unsigned slot,unsigned stamp,float distance) {
+        gap();
+        if(!pool_ || slot>=128) return;
+        const auto first=unsigned(std::clamp(distance/16.f,0.f,float(extra_bins)));
+        for(unsigned c=0;c<extra_channels;++c)
+            for(unsigned i=first;i<extra_bins;++i)
+                if(pool_->bins[slot][c][i].stamp==stamp) pool_->bins[slot][c][i]={};
+    }
     // Completed laps are immutable so the cached review cannot miss late writes.
     void seal(unsigned stamp) {
         for(auto& q:pending_) if(q.meta.valid && q.meta.stamp<=stamp) q={};
