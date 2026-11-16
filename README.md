@@ -43,6 +43,8 @@ You need F1 25 on Windows x64 and Swofty Launcher 1.3.7 or newer, with its exper
 
 Another telemetry app cannot listen on port 20777 at the same time. The addon uses a fixed port and does not forward packets.
 
+Before telemetry arrives, a compact **Waiting for UDP** label appears without a trace box. Paused and known garage contexts remain hidden. The full graph appears once live inputs and on-track metadata are available.
+
 ## Adjust the display
 
 Open **ADDON SETTINGS → F1 25 Input Overlay** in Swofty to change history, input bars, size, opacity and position.

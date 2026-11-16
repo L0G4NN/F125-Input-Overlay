@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Show a text-only Waiting for UDP status before telemetry arrives; do not draw an empty or stale graph.
+
 - Remove the extra pixel below F8 extrema markers to avoid protruding trace edges without changing recorded values or geometry budgets.
 - Add Bahrain F8 and live overlay previews to the README.
 
@@ -37,7 +39,9 @@
 - Keep closed-menu graph work and driving-state review input polling off; add lifecycle/focus/fuzz/benchmark checks and documented runtime limitations.
 - Windows compilation and synthetic checks only; in-game operation and performance remain unverified.
 
-## Unreleased — packet validation hardening
+## Unreleased
+
+- Show a text-only Waiting for UDP status before telemetry arrives; do not draw an empty or stale graph. — packet validation hardening
 
 - Reject invalid pedals before session/frame tracking changes; preserve gap indication only for newer packets from the established player.
 - Decode each header and pedal pair once, with no new allocations or history storage.
@@ -64,6 +68,8 @@
 - Compiled and inspected; real Swofty import and game testing remain pending.
 
 ## Unreleased
+
+- Show a text-only Waiting for UDP status before telemetry arrives; do not draw an empty or stale graph.
 
 ### Added
 

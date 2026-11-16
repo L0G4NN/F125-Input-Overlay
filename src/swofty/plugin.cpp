@@ -115,9 +115,16 @@ void paint(SwoftyPaint* p,void*) {
     review_panel.paint(api,p,recorder,now,review_safe,
                        foreground_pid==GetCurrentProcessId(),VK_F1+review_key.load()-1,review_supported);
     if(review_panel.open()) return;
-    if(!input_trace::show_live_hud(hide_in_menus.load(),is_paused,recorder.on_track(now))) return;
     const auto panel=input_trace::layout(sw,sh,width.load(),height.load(),anchor.load(),horizontal.load(),vertical.load());
     const float x=panel.x,y=panel.y,w=panel.w,h=panel.h,scale=panel.scale;
+    // Missing telemetry is a text-only state, never an empty or stale graph.
+    if(socket_error || feed.trace.state()!=input_trace::State::live) {
+        if(input_trace::show_waiting_hud(is_paused,recorder.garage(now)))
+            ov->text(p,x+8*scale,y+6*scale,14*scale,0xffffffff,
+                     socket_error?"UDP port 20777 unavailable":"Waiting for UDP");
+        return;
+    }
+    if(!input_trace::show_live_hud(hide_in_menus.load(),is_paused,recorder.on_track(now))) return;
     ov->rect(p,x,y,w,h,std::uint32_t(opacity.load()*255/100));
     const float gx=x+36*scale, gy=y+48*scale, gw=w-100*scale, gh=h-68*scale;
     for(int i=0;i<3;++i) {
