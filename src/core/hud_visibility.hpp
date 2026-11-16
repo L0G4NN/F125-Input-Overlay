@@ -13,18 +13,8 @@ inline bool show_live_hud(bool hide_in_menus,bool paused,bool fresh_on_track) {
 }
 
 namespace input_trace {
-// Latch fresh session context at pause entry: UDP may stop during the menu.
-class PauseReviewGate {
-    bool was_paused_{}, allowed_{};
-public:
-    void reset() {was_paused_=allowed_=false;}
-    bool update(bool paused,bool fresh_session) {
-        if(paused && !was_paused_) allowed_=fresh_session;
-        if(!paused) allowed_=false;
-        was_paused_=paused;return paused && allowed_;
-    }
-};
-inline bool review_interactive(bool paused,bool fresh_garage,bool paused_session=false) {
-    return paused?paused_session:fresh_garage;
+// Pause review does not depend on UDP freshness: telemetry may stop in menus.
+inline bool review_interactive(bool paused,bool fresh_garage) {
+    return paused || fresh_garage;
 }
 }

@@ -10,18 +10,11 @@ int main() {
     assert(!show_waiting_hud(true,false)); // pause/flashback
     assert(!show_waiting_hud(true,true));
 
-    PauseReviewGate gate;
-    assert(!gate.update(false,true));
-    assert(gate.update(true,true));
-    assert(gate.update(true,false)); // paused UDP can expire
-    assert(review_interactive(true,false,true));
-    assert(!gate.update(false,true)); // resume releases paused access
-    assert(!gate.update(true,false)); // main menu/stale context cannot open
-    gate.reset();assert(!gate.update(true,false));
+    // F8 works throughout pause, including absent/stale UDP and initial menu entry.
+    assert(review_interactive(true,false));
+    assert(review_interactive(true,true));
     assert(review_interactive(false,true));
-    assert(!review_interactive(false,false));
-    assert(!review_interactive(true,false)); // replay/flashback pause is not a review context
-    assert(!review_interactive(true,true));  // even with fresh old garage metadata
+    assert(!review_interactive(false,false)); // resume on track still closes review
 
     assert(!show_live_hud(true,false,false)); // no metadata: no menu obstruction
     assert(!show_live_hud(true,true,true));   // pause hides even if driving metadata was fresh

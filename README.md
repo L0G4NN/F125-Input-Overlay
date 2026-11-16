@@ -81,3 +81,8 @@ The live HUD is hidden in garage/paused/unknown contexts by default to avoid cov
 Review closes when resuming on track and refuses focus while keyboard/controller controls are held. Paused access cannot distinguish ordinary pause from replay/flashback; close F8 before using flashback controls. The reported stuck-throttle behaviour still requires in-game verification; this addon does not write vehicle inputs.
 
 F8 also includes Speed/Gear, ERS, per-wheel Slip and Aero Height pages, with dashed S2/S3 boundaries. The live HUD shows the reported front-wheel steering angle in degrees. Extended recording uses a fixed 52.4 MiB pool; see [extended telemetry](docs/EXTENDED_TELEMETRY.md) for units, 16 m resolution and validation limits.
+
+
+## F8 pause access update
+
+F8 now opens whenever Swofty reports a pause, without a fresh-UDP or pre-pause latch requirement. Held keys, controller buttons, triggers, stick drift and other navigation no longer block opening or automatically close review. F8, Escape and Close still close it; resuming on track, window/focus loss, reset and disable still release focus. Unpaused access remains garage-only. Close review manually before setup typing or flashback controls. This supersedes earlier freshness/held-control restrictions above; in-game behaviour remains to be verified.

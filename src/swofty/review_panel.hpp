@@ -20,10 +20,6 @@ public:
         SwoftyInput in{}; in.size=sizeof in;
         if(ov->input(paint,&in)!=SWOFTY_ASSET_OK) { close(ov); return; }
         if(open_ && !in.focused) { close(ov); return; } // Another addon owns focus; never reclaim it.
-        // Review has no text fields or gamepad navigation. Hand input back to
-        // the game instead of keeping setup-name characters/navigation captured.
-        // Do not replay captured keys or characters into the game's window.
-        if(handing_back(in,hotkey)) { close(ov); return; }
         if(key(in,hotkey)) {
             if(open_) { close(ov); return; }
             int result=ov->focus(1);
@@ -215,13 +211,6 @@ public:
         (void)now;
     }
 private:
-    static bool handing_back(const SwoftyInput& in,int hotkey) {
-        if(in.char_count || in.pad_buttons || in.pad_pressed || std::abs(in.pad_lx)>.25f || std::abs(in.pad_ly)>.25f ||
-           std::abs(in.pad_rx)>.25f || std::abs(in.pad_ry)>.25f || in.pad_lt>.1f || in.pad_rt>.1f) return true;
-        for(int vk=0;vk<256;++vk)
-            if(vk!=hotkey && vk!=VK_ESCAPE && (key(in,vk) || (in.keys_down[vk/8]&(1u<<(vk%8))))) return true;
-        return false;
-    }
     static bool key(const SwoftyInput& i,int vk) { return vk>0 && vk<256 && (i.keys_pressed[vk/8]&(1u<<(vk%8))); }
     static constexpr const char* wheel_names_[4]={"Wheel: rear left","Wheel: rear right","Wheel: front left","Wheel: front right"};
     int page_{},wheel_{};

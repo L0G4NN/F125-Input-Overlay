@@ -76,3 +76,8 @@ GCC `-O2` on this Linux host, 60,000 four-packet iterations with 22 active cars 
 | 200 | 1.81 us | 1.18 us | 0 |
 
 The later scenarios are timing-only for current laps after trace storage fills. The faster timings therefore do not imply increasing lap count improves performance. Dense single-player X/Y panel tests still cover all pages, sector lines and cursor readouts under the 16,384-vertex budget; multi-driver UI tests cover independent selectors and unavailable opponent channels. Windows AMD64 build and local package validation pass. No release has been published as part of this change.
+
+
+## F8 pause access update
+
+F8 now opens whenever Swofty reports a pause, without a fresh-UDP or pre-pause latch requirement. Held keys, controller buttons, triggers, stick drift and other navigation no longer block opening or automatically close review. F8, Escape and Close still close it; resuming on track, window/focus loss, reset and disable still release focus. Unpaused access remains garage-only. Close review manually before setup typing or flashback controls. This supersedes earlier freshness/held-control restrictions above; in-game behaviour remains to be verified.

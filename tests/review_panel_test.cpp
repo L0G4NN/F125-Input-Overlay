@@ -34,28 +34,20 @@ int main() {
     input.keys_pressed[119/8]|=1u<<(119%8);paint();check(p.open());input={};paint(true,false);check(!p.open() && !focused);
     focus_result=SWOFTY_ASSET_LATE;input.keys_pressed[119/8]|=1u<<(119%8);paint();check(!p.open() && !focused);
     focus_result=SWOFTY_ASSET_OK;paint();check(p.open());input={};input.keys_pressed[27/8]|=1u<<(27%8);paint();check(!p.open() && !focused);
-    // Setup naming: closed review must not acquire focus or draw, even with typed characters.
-    input={};input.char_count=1;input.chars[0]='A';int acquisitions=focus_calls;
-    paint();check(!p.open() && !focused && focus_calls==acquisitions);
-    // Returning to the game with keyboard, characters or controller navigation releases review.
-    for(int kind=0;kind<4;++kind) {
-        input={};input.keys_pressed[119/8]|=1u<<(119%8);paint();check(p.open() && focused);
-        input={};
-        if(kind==0) {input.char_count=1;input.chars[0]='S';}
-        if(kind==1) input.keys_pressed[13/8]|=1u<<(13%8); // Enter in game setup/menu
-        if(kind==2) input.pad_pressed=SWOFTY_PAD_A;
-        if(kind==3) input.pad_ly=.7f;
-        paint();check(!p.open() && !focused);
-    }
-    // Never take focus while an existing control is held (including same-frame F8).
-    for(int kind=0;kind<3;++kind) {
+    // F8 must open and remain open despite held controls, drift and unrelated input.
+    for(int kind=0;kind<6;++kind) {
         input={};input.keys_pressed[119/8]|=1u<<(119%8);
-        if(kind==0) input.keys_down[87/8]|=1u<<(87%8); // W already held, no new edge
+        if(kind==0) input.keys_down[87/8]|=1u<<(87%8);
         if(kind==1) input.pad_buttons=SWOFTY_PAD_A;
         if(kind==2) input.pad_rt=.8f;
-        auto before=focus_calls;paint();check(!p.open() && focus_calls==before);
+        if(kind==3) input.pad_ly=.7f;
+        if(kind==4) {input.char_count=1;input.chars[0]='S';}
+        if(kind==5) input.keys_pressed[13/8]|=1u<<(13%8);
+        paint();check(p.open() && focused);
+        input.keys_pressed[119/8]=0;paint();check(p.open());
+        input={};input.keys_pressed[27/8]|=1u<<(27%8);paint();check(!p.open() && !focused);
     }
-    // Entering replay/flashback closes an open review without another input read.
+    // Losing the allowed context (e.g. resume on track) closes without an input read.
     input={};input.keys_pressed[119/8]|=1u<<(119%8);paint();check(p.open());
     auto before=input_calls;input={};paint(false);check(!p.open() && !focused && input_calls==before);
     // Full graphs, all twelve quality-labelled rows and cursor readout must

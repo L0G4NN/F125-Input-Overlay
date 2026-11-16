@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "l0g4nn.input-overlay",
   "name": "F1 25 Input Overlay",
-  "version": "0.3.0",
+  "version": "0.4.0-preview.2",
   "author": "L0G4NN",
   "description": "Live pedal traces and F8 session lap comparison. UDP 2025 to 127.0.0.1:20777. Experimental.",
   "kind": [
