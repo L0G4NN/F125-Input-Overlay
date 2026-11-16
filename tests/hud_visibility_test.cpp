@@ -5,6 +5,11 @@
 using namespace fixture;
 using namespace input_trace;
 int main() {
+    assert(show_waiting_hud(false,false)); // no session/UDP yet
+    assert(!show_waiting_hud(false,true)); // protect garage text entry
+    assert(!show_waiting_hud(true,false)); // pause/flashback
+    assert(!show_waiting_hud(true,true));
+
     assert(review_interactive(false,true));
     assert(!review_interactive(false,false));
     assert(!review_interactive(true,false)); // replay/flashback pause is not a review context
