@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — multi-driver lap review
+
+- Remove paused F8 telemetry-freshness/latch and held-input/navigation blockers; retain explicit close, resume-on-track and focus/window-loss cleanup.
+
+- Independent X/Y driver and completed-lap selection, retaining all five pages and distance controls.
+- Shared 128-slot trace allocator and per-car timing, pairing, identity and rewind state; 53.21 MiB total reserved on the validation host. The shared trace limit covers active and completed laps across the field, not 128 per car; later laps remain timing-only.
+- Player-only motion channels and restricted opponent ERS are unavailable rather than fabricated zero traces. Local HUD and PR #15 focus gates remain tied to the player.
+- Participants decoder, 22-car/200-lap regressions, cross-driver panel tests, deterministic mutation test and allocation benchmark. Real-game validation remains pending.
+
+
 ## Unreleased
 
 - Restore F8 during pauses entered from a live session, keeping held-control checks.

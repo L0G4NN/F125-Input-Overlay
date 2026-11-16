@@ -1,5 +1,6 @@
 #pragma once
 #include "core/review_plot.hpp"
+#include "core/multi_review.hpp"
 // Included by the Windows adapter. All methods are called by its render owner.
 namespace input_trace::review {
 class Panel {
@@ -9,25 +10,22 @@ public:
         open_=false; dragging_=false;
     }
     bool open() const { return open_; }
-    void paint(const SwoftyApi* api,SwoftyPaint* paint,const Recorder& r,
+    template<class Source>
+    void paint(const SwoftyApi* api,SwoftyPaint* paint,const Source& r,
                double now,bool safe,bool active_window,int hotkey,bool supported) {
         if(!supported) return; // Never access v3 fields without runtime feature detection.
         auto ov=api->overlay;
-        if(generation_!=r.generation()) { close(ov); generation_=r.generation(); x_=y_=-1; scroll_=0; view_end_=0; }
+        if(generation_!=r.generation()) { close(ov); generation_=r.generation(); x_=y_=-1; xd_=yd_=r.player_index(); scroll_=0; view_end_=0; dirty_=true; }
         if(!safe || !active_window || !r.available()) { close(ov); return; }
         SwoftyInput in{}; in.size=sizeof in;
         if(ov->input(paint,&in)!=SWOFTY_ASSET_OK) { close(ov); return; }
         if(open_ && !in.focused) { close(ov); return; } // Another addon owns focus; never reclaim it.
-        // Review has no text fields or gamepad navigation. Hand input back to
-        // the game instead of keeping setup-name characters/navigation captured.
-        // Do not replay captured keys or characters into the game's window.
-        if(handing_back(in,hotkey)) { close(ov); return; }
         if(key(in,hotkey)) {
             if(open_) { close(ov); return; }
             int result=ov->focus(1);
             if(result!=SWOFTY_ASSET_OK) { ov->focus(0); return; }
             open_=true;
-            if(x_<0 && r.size()) x_=int(r.size()-1);
+            if(x_<0 && r.driver(xd_).size()) x_=int(r.driver(xd_).size()-1);
             return; // Wait for our own focused snapshot before interacting.
         }
         if(!open_) return;
@@ -46,34 +44,49 @@ public:
         rect(0,0,1800,940,0x101722fa);
         text(20,16,"LAP REVIEW  |  X cyan / Y amber  |  distance aligned");
         if(button(1670,12,110,"Close")) { close(ov); return; }
-        text(20,60,"Completed laps - click X or Y");
-        if(button(20,92,110,"Previous")) scroll_=std::max(0,scroll_-12);
-        if(button(145,92,110,"Next")) scroll_=std::min(std::max(0,int(r.size())-12),scroll_+12);
-        scroll_=std::clamp(scroll_,0,std::max(0,int(r.size())-1));
-        if(in.wheel && inside(0,130,580,660)) scroll_=std::clamp(scroll_-int(in.wheel)*3,0,std::max(0,int(r.size())-12));
-        for(int row=0;row<12 && std::size_t(scroll_+row)<r.size();++row) {
-            int i=scroll_+row; const auto& l=r.lap(std::size_t(i)); float yy=138+row*52.f;
+        auto next_driver=[&](unsigned current) {
+            for(unsigned n=0;n<r.driver_count();++n) if(r.driver_index(n)==current)
+                return r.driver_index((n+1)%r.driver_count());
+            return r.player_index();
+        };
+        char driver_label[80];
+        std::snprintf(driver_label,sizeof driver_label,"X > %02u %.16s",xd_+1,r.driver_name(xd_));
+        if(button(20,52,270,driver_label)) {xd_=next_driver(xd_);x_=-1;browse_y_=false;scroll_=0;dirty_=true;}
+        std::snprintf(driver_label,sizeof driver_label,"Y > %02u %.16s",yd_+1,r.driver_name(yd_));
+        if(button(300,52,270,driver_label)) {yd_=next_driver(yd_);y_=-1;browse_y_=true;scroll_=0;dirty_=true;}
+        if(button(20,92,240,browse_y_?"Laps: Y driver":"Laps: X driver")) {browse_y_=!browse_y_;scroll_=0;}
+        const unsigned browsed=browse_y_?yd_:xd_;
+        const auto& list=r.driver(browsed);
+        if(button(280,92,135,"Previous")) scroll_=std::max(0,scroll_-12);
+        if(button(430,92,135,"Next")) scroll_=std::min(std::max(0,int(list.size())-12),scroll_+12);
+        scroll_=std::clamp(scroll_,0,std::max(0,int(list.size())-1));
+        if(in.wheel && inside(0,130,580,630)) scroll_=std::clamp(scroll_-int(in.wheel)*3,0,std::max(0,int(list.size())-12));
+        for(int row=0;row<12 && std::size_t(scroll_+row)<list.size();++row) {
+            int i=scroll_+row; const auto& l=list.lap(std::size_t(i)); float yy=138+row*52.f;
+            const bool isx=xd_==browsed && x_==i,isy=yd_==browsed && y_==i;
             char label[96];
-            rect(12,yy-5,555,48,(x_==i || y_==i)?0x253246ff:0x151f2dff);
+            rect(12,yy-5,555,48,(isx || isy)?0x253246ff:0x151f2dff);
             if(l.time_ms) std::snprintf(label,sizeof label,"Lap %u   %u:%02u.%03u",l.number,l.time_ms/60000,(l.time_ms/1000)%60,l.time_ms%1000);
             else std::snprintf(label,sizeof label,"Lap %u   time unknown",l.number);
-            text(20,yy,label,x_==i?0x55d9ffff:y_==i?0xffbd59ff:0xe0e6edff);
+            text(20,yy,label,isx?0x55d9ffff:isy?0xffbd59ff:0xe0e6edff);
             std::snprintf(label,sizeof label,"%s%s%s",l.invalid?"INVALID ":"",l.partial?"PARTIAL ":"",l.limited?"NO TRACE":l.out?"OUT LAP":l.in?"IN LAP":"");
             ov->text(paint,ox+20*scale,oy+(yy+23)*scale,14*scale,0x9eabc0ff,label);
-            if(button(435,yy-3,52,x_==i?"X *":"X")) { x_=i; if(y_==x_) y_=-1; dirty_=true; }
-            if(button(500,yy-3,52,y_==i?"Y *":"Y")) { y_=i==x_?-1:i; dirty_=true; }
+            if(button(435,yy-3,52,isx?"X *":"X")) { xd_=browsed;x_=i;dirty_=true; }
+            if(button(500,yy-3,52,isy?"Y *":"Y")) { yd_=browsed;y_=i;dirty_=true; }
         }
-        if(!r.size()) text(20,160,!r.recording()?"Recording disabled.":!r.session_ready()?"Waiting for UDP session metadata.":"No completed laps recorded yet.");
+        if(!list.size()) text(20,160,!r.recording()?"Recording disabled.":!r.session_ready()?"Waiting for UDP session metadata.":"No completed laps for this driver yet.");
+        const auto& rx=r.driver(xd_);const auto& ry=r.driver(yd_);
         if(button(600,62,180,"Clear comparison")) { y_=-1; dirty_=true; }
         if(button(965,62,200,split_?"View: separate":"View: overlay")) split_=!split_;
         if(button(800,62,140,"Reset view")) { view_begin_=0; view_end_=r.length(); dirty_=true; }
         if(view_end_<=view_begin_ || view_end_>r.length()) { view_begin_=0; view_end_=r.length(); dirty_=true; }
         char selection[160];
-        unsigned xn=x_>=0 && std::size_t(x_)<r.size()?r.lap(std::size_t(x_)).number:0;
-        unsigned yn=y_>=0 && std::size_t(y_)<r.size()?r.lap(std::size_t(y_)).number:0;
-        if(yn) std::snprintf(selection,sizeof selection,"X: lap %u   /   Y: lap %u",xn,yn);
-        else std::snprintf(selection,sizeof selection,"X: lap %u   /   Y: none",xn);
-        text(1200,68,selection);
+        unsigned xn=x_>=0 && std::size_t(x_)<rx.size()?rx.lap(std::size_t(x_)).number:0;
+        unsigned yn=y_>=0 && std::size_t(y_)<ry.size()?ry.lap(std::size_t(y_)).number:0;
+        std::snprintf(selection,sizeof selection,"X: %.16s / lap %u",r.driver_name(xd_),xn);text(1200,52,selection);
+        if(yn) std::snprintf(selection,sizeof selection,"Y: %.16s / lap %u",r.driver_name(yd_),yn);
+        else std::snprintf(selection,sizeof selection,"Y: %.16s / no lap",r.driver_name(yd_));
+        text(1200,76,selection);
         const char* pages[]={"Pedals","Speed / Gear","ERS","Wheel slip","Aero height"};
         for(int i=0;i<5;++i) {
             char tab[40];std::snprintf(tab,sizeof tab,"%s%s",page_==i?"> ":"",pages[i]);
@@ -101,9 +114,9 @@ public:
             view_begin_=std::clamp(drag_begin_-(mx-drag_x_)/gw*span,0.f,std::max(0.f,r.length()-span));
             view_end_=view_begin_+span; dirty_=true;
         }
-        if(dirty_ || cache_x_!=x_ || cache_y_!=y_ || cache_count_!=r.size()) {
-            plot_.build(r,x_,y_,view_begin_,view_end_,channel0,channel1); dirty_=false;
-            cache_x_=x_; cache_y_=y_; cache_count_=r.size();
+        if(dirty_ || cache_x_!=x_ || cache_y_!=y_ || cache_count_!=rx.size()+ry.size() || cache_xd_!=xd_ || cache_yd_!=yd_) {
+            plot_.build(rx,x_,ry,y_,view_begin_,view_end_,channel0,channel1); dirty_=false;
+            cache_x_=x_; cache_y_=y_; cache_count_=rx.size()+ry.size();cache_xd_=xd_;cache_yd_=yd_;
         }
         for(unsigned s=0;s<4;++s) {
             if(s>=2 && !split_) continue;
@@ -168,14 +181,15 @@ public:
             float d=view_begin_+fraction*(view_end_-view_begin_);
             auto bi=std::size_t(std::max(0.f,d/2));
             for(int which=0;which<2;++which) {
+                const auto& selected=which?ry:rx;
                 int sel=which?y_:x_;
                 if(page_==0) {
-                    const Bin* b=sel>=0 && std::size_t(sel)<r.size()?r.bin(r.lap(std::size_t(sel)),bi):nullptr;
+                    const Bin* b=sel>=0 && std::size_t(sel)<selected.size()?selected.bin(selected.lap(std::size_t(sel)),bi):nullptr;
                     if(b) std::snprintf(info,sizeof info,"%c @ %.0f m: throttle %.0f-%.0f%%  brake %.0f-%.0f%%",which?'Y':'X',d,b->throttle_min*100,b->throttle_max*100,b->brake_min*100,b->brake_max*100);
                     else std::snprintf(info,sizeof info,"%c @ %.0f m: -- (no coverage)",which?'Y':'X',d);
                 } else {
-                    auto* a=sel>=0 && std::size_t(sel)<r.size()?r.extra(r.lap(std::size_t(sel)),unsigned(channel0),unsigned(d/16)):nullptr;
-                    auto* b=sel>=0 && std::size_t(sel)<r.size()?r.extra(r.lap(std::size_t(sel)),unsigned(channel1),unsigned(d/16)):nullptr;
+                    auto* a=sel>=0 && std::size_t(sel)<selected.size()?selected.extra(selected.lap(std::size_t(sel)),unsigned(channel0),unsigned(d/16)):nullptr;
+                    auto* b=sel>=0 && std::size_t(sel)<selected.size()?selected.extra(selected.lap(std::size_t(sel)),unsigned(channel1),unsigned(d/16)):nullptr;
                     char av[48]="--",bv[48]="--";
                     if(a) std::snprintf(av,sizeof av,"%.4f to %.4f",a->lo,a->hi);
                     if(b) std::snprintf(bv,sizeof bv,"%.4f to %.4f",b->lo,b->hi);
@@ -184,24 +198,25 @@ public:
                 text(gx,850+which*28.f,info);
             }
         }
-        text(20,810,"F8 / Escape to close. Garage or paused session.");
-        text(20,842,"Controllers/wheels still reach the game.");
-        text(20,874,r.metadata_limit()?"Lap metadata limit reached.":"After 128 traces, later laps retain timing only.");
+        for(unsigned which=0;which<2;++which) {
+            const char* hint=r.driver_hint(which?yd_:xd_,page_);
+            if(*hint) {
+                char note[128];std::snprintf(note,sizeof note,"%c: %s",which?'Y':'X',hint);
+                ov->text(paint,ox+20*scale,oy+(808+which*18)*scale,14*scale,0x9eabc0ff,note);
+            }
+        }
+        text(20,850,"F8 / Escape to close. Garage or paused session.");
+        text(20,878,"Controllers/wheels still reach the game.");
+        text(20,906,r.metadata_limit()?"Lap metadata limit reached.":"128 shared trace slots; later laps: timing only.");
         (void)now;
     }
 private:
-    static bool handing_back(const SwoftyInput& in,int hotkey) {
-        if(in.char_count || in.pad_buttons || in.pad_pressed || std::abs(in.pad_lx)>.25f || std::abs(in.pad_ly)>.25f ||
-           std::abs(in.pad_rx)>.25f || std::abs(in.pad_ry)>.25f || in.pad_lt>.1f || in.pad_rt>.1f) return true;
-        for(int vk=0;vk<256;++vk)
-            if(vk!=hotkey && vk!=VK_ESCAPE && (key(in,vk) || (in.keys_down[vk/8]&(1u<<(vk%8))))) return true;
-        return false;
-    }
     static bool key(const SwoftyInput& i,int vk) { return vk>0 && vk<256 && (i.keys_pressed[vk/8]&(1u<<(vk%8))); }
     static constexpr const char* wheel_names_[4]={"Wheel: rear left","Wheel: rear right","Wheel: front left","Wheel: front right"};
     int page_{},wheel_{};
     Plot plot_{};
-    unsigned generation_{};
+    unsigned generation_{},xd_{},yd_{},cache_xd_{},cache_yd_{};
+    bool browse_y_{};
     std::size_t cache_count_{};
     int x_{-1},y_{-1},cache_x_{-2},cache_y_{-2},scroll_{};
     float view_begin_{},view_end_{},drag_x_{},drag_begin_{};

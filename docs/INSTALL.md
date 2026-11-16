@@ -55,7 +55,7 @@ The full live panel stays inside the screen. Mouse dragging to reposition it is 
 1. Keep the master toggle and **Record session laps in memory** on. Enable UDP before driving the laps you want to review.
 2. Complete laps, then **pause mid-session**, or return to the garage unpaused. Pause access latches fresh lap telemetry when the pause begins.
 3. Keep the game window active, release held keyboard/controller controls, and press **F8** or your configured review key.
-4. Select **X** and **Y** beside completed laps. X is cyan and Y is amber. Each pedal has separate X/Y lanes by default; **View** switches to shared-axis overlay comparisons.
+4. Cycle the **X >** and **Y >** driver buttons independently. Switch **Laps: X driver / Y driver** to browse either driver, then assign **X** or **Y** beside a completed lap. X is cyan and Y is amber. Each pedal has separate X/Y lanes by default; **View** switches to shared-axis overlay comparisons.
 
 | Control | Action |
 | --- | --- |
@@ -77,8 +77,8 @@ Review focus does not block controllers or wheels, and DirectInput wheels may no
 
 - Laps stay in memory only. There is no disk telemetry recording, export or upload.
 - Exiting the game or a session reset clears recordings. Rewinds clear X/Y selections, retain earlier laps and the affected lap prefix, and delete the abandoned suffix and later laps. The boundary bin is discarded; rewritten laps are marked partial.
-- Up to 128 detailed lap traces are stored. Later laps retain timing metadata and show **NO TRACE**, with a hard guard of 1,024 metadata entries.
-- The pool uses about 24.2 MiB plus small fixed state/caches. It is allocated at startup and remains allocated until game exit, even with recording off.
+- The entire field shares 128 detailed trace slots, including active laps. With 22 cars this stores roughly the first five to six laps per car. Later laps retain timing metadata and show **NO TRACE**, with a hard guard of 1,024 metadata entries per car.
+- The shared pools and all 22 recorder states reserve about 53.21 MiB; plots add small fixed caches. It is allocated at startup and remains allocated until game exit, even with recording off.
 - Unknown track IDs and tracks longer than 16,384 m are not recorded.
 
 ## Troubleshooting
@@ -106,3 +106,13 @@ Exit F1 25, then disable the addon in your Swofty profile. Use launcher's addon 
 Windows AMD64 compilation, addon exports, system DLL imports, package structure and synthetic packet/trace checks are documented. These checks do not establish successful installation or in-game compatibility.
 
 Actual import/load, keyboard/mouse/controller/wheel behaviour, pause/flashback handling, setup naming, race finalization, settings persistence, coexistence and performance still need game testing. Linux/Proton, VR, HDR/frame generation, multiplayer, split-screen and the 2026 format/Season Pack are untested or outside the initial target. See [conformance](CONFORMANCE.md) and the [test plan](TEST_PLAN.md) for details.
+
+
+## Multi-driver review (current)
+
+[Multi-driver review](MULTI_DRIVER_REVIEW.md) supersedes the player-only recording and trace-count descriptions above. X/Y select independent drivers and completed laps. One 128-slot detailed pool is shared across all cars (including active laps), with 1,024 timing entries per car and a measured 53.21 MiB total reservation. Local HUD and the PR #15 pause/focus gates still use only local-player state. Opponent slip/aero data and restricted ERS remain unavailable. See that document for controls, retention limits, packet offsets, rewind handling and validation evidence.
+
+
+## F8 pause access update
+
+F8 now opens whenever Swofty reports a pause, without a fresh-UDP or pre-pause latch requirement. Held keys, controller buttons, triggers, stick drift and other navigation no longer block opening or automatically close review. F8, Escape and Close still close it; resuming on track, window/focus loss, reset and disable still release focus. Unpaused access remains garage-only. Close review manually before setup typing or flashback controls. This supersedes earlier freshness/held-control restrictions above; in-game behaviour remains to be verified.
