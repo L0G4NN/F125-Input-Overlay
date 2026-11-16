@@ -33,7 +33,7 @@ class Recorder {
 public:
     bool initialize() { if(!pool_) pool_.reset(new(std::nothrow) Pool); return bool(pool_) && extras_.initialize(); }
     void reset() {
-        count_=stored_=0; active_=false; session_=false; garage_=false; lap_seen_=false; rewound_=false; finished_=false;
+        count_=stored_=0; active_=false; session_=false; garage_=false; lap_seen_=false; rewound_=false; finished_=false; rewind_pending_=false;
         extras_.gap(); sectors_={}; pairs_={}; seen_={}; broken_=true; have_sample_=false; ++generation_; // pool stamps are never reused
     }
     void gap() { extras_.gap(); broken_=true; if(active_) current_.partial=true; pairs_={}; }
@@ -81,6 +81,7 @@ public:
             remember(0,h); return;
         }
         if(p[6]==8) {
+            if(rewind_pending_) return;
             if(!decode_common(p,h,8,1042) || !session_ || h.session!=uid_ || h.player!=player_ ||
                p[29]>22 || h.player>=p[29] || !newer(3,h.frame)) return;
             const auto* c=p.data()+30+46*h.player;
@@ -111,14 +112,17 @@ public:
         if(!session_ || h.session!=uid_ || h.player!=player_ || !newer(stream,h.frame)) return;
         if(rewound_ && h.frame!=rewind_frame_ && std::uint32_t(h.frame-rewind_frame_)>=0x80000000u) return;
         if((seen_[stream] && h.time<times_[stream]) || (stream==1 && active_ && m.lap<current_.number)) {
-            // Conservative rewind policy: discard this generation, including completed laps.
-            // Do not combine abandoned and replacement attempts or retain stale selections.
-            count_=stored_=0; active_=false; have_sample_=false; pairs_={}; ++generation_; finished_=false; gap();
+            // Wait for lap metadata to locate the exact abandoned suffix.
+            rewind_pending_=true; pairs_={}; extras_.gap(); ++generation_; finished_=false;
             for(auto& t:times_) t=h.time;
             rewind_frame_=h.frame; rewound_=true;
             // Keep all stream frame counters: delayed pre-rewind packets remain ordered.
         }
         remember(stream,h);
+        if(rewind_pending_) {
+            if(stream!=1) return;
+            truncate(m); rewind_pending_=false;
+        }
         if(stream==1) {
             garage_=m.driver==0; lap_seen_=true; lap_wall_=wall;
             if(!recording_ || !pool_ || finished_) return;
@@ -155,6 +159,25 @@ public:
         }
     }
 private:
+    void truncate(const Meta& m) {
+        Lap retained{}; bool found=active_ && current_.number==m.lap;
+        if(found) retained=current_;
+        std::size_t keep=0;
+        while(keep<count_ && laps_[keep].number<m.lap) ++keep;
+        if(!found && keep<count_ && laps_[keep].number==m.lap) {retained=laps_[keep];found=true;}
+        count_=keep;stored_=0;
+        for(std::size_t i=0;i<count_;++i) if(!laps_[i].limited) ++stored_;
+        active_=found; have_sample_=false;broken_=true;pairs_={};extras_.gap();
+        if(!found) return;
+        current_=retained;current_.time_ms=0;current_.partial=true;
+        current_.last=m.distance;
+        if(!current_.limited && pool_) {
+            const auto first=std::size_t(std::clamp(m.distance/2.f,0.f,float(bins_per_lap)));
+            for(auto i=first;i<bins_per_lap;++i)
+                if(pool_->bins[current_.slot][i].stamp==current_.stamp) pool_->bins[current_.slot][i]={};
+            extras_.truncate(current_.slot,current_.stamp,m.distance);
+        }
+    }
     void finish(unsigned ms) {
         extras_.seal(current_.stamp);
         if(count_==lap_limit) return;
@@ -202,7 +225,7 @@ private:
     std::uint64_t uid_{};
     unsigned player_{}, track_{}, stamp_{}, generation_{};
     std::uint32_t rewind_frame_{};
-    bool rewound_{}, finished_{};
+    bool rewound_{}, finished_{}, rewind_pending_{};
     float length_{};
     double last_time_{}, lap_wall_{};
     bool active_{}, session_{}, garage_{}, lap_seen_{}, recording_{true}, broken_{true}, have_sample_{};

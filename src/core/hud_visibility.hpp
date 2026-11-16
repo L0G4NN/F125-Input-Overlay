@@ -13,9 +13,18 @@ inline bool show_live_hud(bool hide_in_menus,bool paused,bool fresh_on_track) {
 }
 
 namespace input_trace {
-// A pause is not proof of a safe menu: it can be replay/flashback. Never
-// acquire review focus there, including when garage metadata is still fresh.
-inline bool review_interactive(bool paused,bool fresh_garage) {
-    return !paused && fresh_garage;
+// Latch fresh session context at pause entry: UDP may stop during the menu.
+class PauseReviewGate {
+    bool was_paused_{}, allowed_{};
+public:
+    void reset() {was_paused_=allowed_=false;}
+    bool update(bool paused,bool fresh_session) {
+        if(paused && !was_paused_) allowed_=fresh_session;
+        if(!paused) allowed_=false;
+        was_paused_=paused;return paused && allowed_;
+    }
+};
+inline bool review_interactive(bool paused,bool fresh_garage,bool paused_session=false) {
+    return paused?paused_session:fresh_garage;
 }
 }

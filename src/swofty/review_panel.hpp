@@ -184,7 +184,7 @@ public:
                 text(gx,850+which*28.f,info);
             }
         }
-        text(20,810,"F8 / Escape to close. Garage only.");
+        text(20,810,"F8 / Escape to close. Garage or paused session.");
         text(20,842,"Controllers/wheels still reach the game.");
         text(20,874,r.metadata_limit()?"Lap metadata limit reached.":"After 128 traces, later laps retain timing only.");
         (void)now;
