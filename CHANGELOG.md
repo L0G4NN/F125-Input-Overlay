@@ -2,6 +2,8 @@
 
 ## Unreleased — multi-driver lap review
 
+- Replace X/Y driver cycling with paged dropdown lists; preserve independent selections and prevent clicks/scrolls reaching controls underneath.
+
 - Remove paused F8 telemetry-freshness/latch and held-input/navigation blockers; retain explicit close, resume-on-track and focus/window-loss cleanup.
 
 - Independent X/Y driver and completed-lap selection, retaining all five pages and distance controls.

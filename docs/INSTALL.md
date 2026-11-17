@@ -55,7 +55,7 @@ The full live panel stays inside the screen. Mouse dragging to reposition it is 
 1. Keep the master toggle and **Record session laps in memory** on. Enable UDP before driving the laps you want to review.
 2. Complete laps, then **pause mid-session**, or return to the garage unpaused. Pause access latches fresh lap telemetry when the pause begins.
 3. Keep the game window active, release held keyboard/controller controls, and press **F8** or your configured review key.
-4. Cycle the **X >** and **Y >** driver buttons independently. Switch **Laps: X driver / Y driver** to browse either driver, then assign **X** or **Y** beside a completed lap. X is cyan and Y is amber. Each pedal has separate X/Y lanes by default; **View** switches to shared-axis overlay comparisons.
+4. Open the **X v** and **Y v** dropdowns to select drivers independently. Switch **Laps: X driver / Y driver** to browse either driver, then assign **X** or **Y** beside a completed lap. X is cyan and Y is amber. Each pedal has separate X/Y lanes by default; **View** switches to shared-axis overlay comparisons.
 
 | Control | Action |
 | --- | --- |

@@ -7,7 +7,7 @@ class Panel {
 public:
     void close(const SwoftyOverlay* ov) {
         if(open_) ov->focus(0);
-        open_=false; dragging_=false;
+        open_=false; dragging_=false; dropdown_=-1;
     }
     bool open() const { return open_; }
     template<class Source>
@@ -29,7 +29,7 @@ public:
             return; // Wait for our own focused snapshot before interacting.
         }
         if(!open_) return;
-        if(key(in,VK_ESCAPE)) { close(ov); return; }
+        if(key(in,VK_ESCAPE)) { if(dropdown_>=0) dropdown_=-1; else close(ov); return; }
         float sw=0,sh=0; ov->size(paint,&sw,&sh);
         float scale=std::min(sw/1920,sh/1080);
         if(scale<=0) { close(ov); return; }
@@ -44,16 +44,47 @@ public:
         rect(0,0,1800,940,0x101722fa);
         text(20,16,"LAP REVIEW  |  X cyan / Y amber  |  distance aligned");
         if(button(1670,12,110,"Close")) { close(ov); return; }
-        auto next_driver=[&](unsigned current) {
-            for(unsigned n=0;n<r.driver_count();++n) if(r.driver_index(n)==current)
-                return r.driver_index((n+1)%r.driver_count());
-            return r.player_index();
-        };
+        const bool list_was_open=dropdown_>=0;
+        bool driver_clicked=false;
         char driver_label[80];
-        std::snprintf(driver_label,sizeof driver_label,"X > %02u %.16s",xd_+1,r.driver_name(xd_));
-        if(button(20,52,270,driver_label)) {xd_=next_driver(xd_);x_=-1;browse_y_=false;scroll_=0;dirty_=true;}
-        std::snprintf(driver_label,sizeof driver_label,"Y > %02u %.16s",yd_+1,r.driver_name(yd_));
-        if(button(300,52,270,driver_label)) {yd_=next_driver(yd_);y_=-1;browse_y_=true;scroll_=0;dirty_=true;}
+        auto driver_button=[&](int side,float x,unsigned selected) {
+            std::snprintf(driver_label,sizeof driver_label,"%c v %02u %.16s",side?'Y':'X',selected+1,r.driver_name(selected));
+            if(button(x,52,270,driver_label)) {
+                driver_clicked=true;dropdown_=dropdown_==side?-1:side;driver_scroll_=0;dragging_=false;
+                for(unsigned n=0;n<r.driver_count();++n) if(r.driver_index(n)==selected)
+                    driver_scroll_=std::min(int(n),std::max(0,int(r.driver_count())-8));
+            }
+        };
+        driver_button(0,20,xd_);driver_button(1,300,yd_);
+        const bool selecting_driver=list_was_open || dropdown_>=0;
+        if(dropdown_>=0) {
+            if(driver_clicked) click=false;
+            const int count=int(r.driver_count());
+            const int last=std::max(0,count-8);
+            driver_scroll_=std::clamp(driver_scroll_,0,last);
+            if(in.wheel && inside(12,88,558,430)) driver_scroll_=std::clamp(driver_scroll_-(in.wheel>0?3:-3),0,last);
+            rect(12,88,558,430,0x1b293dff);
+            text(20,98,dropdown_?"Select Y driver":"Select X driver");
+            if(button(280,92,135,"Previous")) driver_scroll_=std::max(0,driver_scroll_-8);
+            if(button(430,92,135,"Next")) driver_scroll_=std::min(last,driver_scroll_+8);
+            for(int row=0;row<8 && driver_scroll_+row<count;++row) {
+                const unsigned car=r.driver_index(unsigned(driver_scroll_+row));
+                const float y=138+row*46.f;
+                const unsigned selected=dropdown_?yd_:xd_;
+                rect(20,y,540,42,inside(20,y,540,42)?0x40526aff:car==selected?0x304967ff:0x223147ff);
+                std::snprintf(driver_label,sizeof driver_label,"%s%02u  %.32s",car==selected?"> ":"  ",car+1,r.driver_name(car));
+                ov->text(paint,ox+28*scale,oy+(y+10)*scale,16*scale,0xffffffff,driver_label);
+                if(click && inside(20,y,540,42)) {
+                    if(dropdown_==0) {if(xd_!=car) x_=-1;xd_=car;browse_y_=false;}
+                    else {if(yd_!=car) y_=-1;yd_=car;browse_y_=true;}
+                    scroll_=0;dirty_=true;dropdown_=-1;break;
+                }
+            }
+            if(click && !inside(12,88,558,430) && !driver_clicked) dropdown_=-1;
+        }
+        // Dropdown gestures never activate controls or zoom underneath the list.
+        if(selecting_driver) {click=false;in.wheel=0;dragging_=false;}
+        if(!selecting_driver) {
         if(button(20,92,240,browse_y_?"Laps: Y driver":"Laps: X driver")) {browse_y_=!browse_y_;scroll_=0;}
         const unsigned browsed=browse_y_?yd_:xd_;
         const auto& list=r.driver(browsed);
@@ -75,6 +106,7 @@ public:
             if(button(500,yy-3,52,isy?"Y *":"Y")) { yd_=browsed;y_=i;dirty_=true; }
         }
         if(!list.size()) text(20,160,!r.recording()?"Recording disabled.":!r.session_ready()?"Waiting for UDP session metadata.":"No completed laps for this driver yet.");
+        }
         const auto& rx=r.driver(xd_);const auto& ry=r.driver(yd_);
         if(button(600,62,180,"Clear comparison")) { y_=-1; dirty_=true; }
         if(button(965,62,200,split_?"View: separate":"View: overlay")) split_=!split_;
@@ -213,7 +245,7 @@ public:
 private:
     static bool key(const SwoftyInput& i,int vk) { return vk>0 && vk<256 && (i.keys_pressed[vk/8]&(1u<<(vk%8))); }
     static constexpr const char* wheel_names_[4]={"Wheel: rear left","Wheel: rear right","Wheel: front left","Wheel: front right"};
-    int page_{},wheel_{};
+    int page_{},wheel_{},dropdown_{-1},driver_scroll_{};
     Plot plot_{};
     unsigned generation_{},xd_{},yd_{},cache_xd_{},cache_yd_{};
     bool browse_y_{};

@@ -9,14 +9,14 @@
 #include <iostream>
 using namespace input_trace::review;
 namespace {
-bool opponent_selected=false,unavailable_hint=false;
+bool opponent_selected=false,unavailable_hint=false,last_driver_visible=false,last_driver_selected=false;
 SwoftyInput input{}; int sectors=0; int glyphs=0; bool amber=false,cyan=false; int focus_calls=0, lines=0, texts=0,rects=0, input_calls=0; bool focused=false; int focus_result=SWOFTY_ASSET_OK;
 int read_input(const SwoftyPaint*,SwoftyInput* out) { ++input_calls; *out=input; out->focused=focused; return SWOFTY_ASSET_OK; }
 int focus(int on) { ++focus_calls; if(focus_result==SWOFTY_ASSET_OK || !on) focused=on!=0; return focus_result; }
 void size(const SwoftyPaint*,float* w,float* h) {*w=1920;*h=1080;}
 void rect(SwoftyPaint*,float,float,float,float,uint32_t) {++rects;}
 void line(SwoftyPaint*,float x,float y,float a,float b,float,uint32_t colour) {if(colour==0xffffff80) ++sectors;if(colour==0xffbd59ff) amber=true;if(colour==0x55d9ffff) cyan=true;if(!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(a)||!std::isfinite(b))std::abort();++lines;}
-void text(SwoftyPaint*,float,float,float,uint32_t,const char* str) {++texts;glyphs+=int(std::strlen(str));if(std::strstr(str,"Y: Driver 2 / lap 1"))opponent_selected=true;if(std::strstr(str,"Player-only"))unavailable_hint=true;}
+void text(SwoftyPaint*,float,float,float,uint32_t,const char* str) {++texts;glyphs+=int(std::strlen(str));if(std::strstr(str,"22  Driver 22"))last_driver_visible=true;if(std::strstr(str,"Y: Driver 22 / no lap"))last_driver_selected=true;if(std::strstr(str,"Y: Driver 2 / lap 1"))opponent_selected=true;if(std::strstr(str,"Player-only"))unavailable_hint=true;}
 void check(bool ok) {if(!ok)std::abort();}
 }
 int main() {
@@ -91,10 +91,17 @@ int main() {
     Panel cross;
     auto draw_grid=[&]{cross.paint(&api,nullptr,*grid,.05,true,true,119,true);};
     input={};input.keys_pressed[119/8]|=1u<<(119%8);draw_grid();check(cross.open());
-    input={};input.x=380;input.y=130;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid(); // Y driver -> car 2
+    input={};input.x=380;input.y=130;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid(); // open Y dropdown
+    input={};input.x=380;input.y=260;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid(); // choose car 2
     input={};input.x=580;input.y=215;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid(); // Y lap 1
     input={};lines=rects=glyphs=0;amber=cyan=false;draw_grid();
     check(opponent_selected && amber && cyan && 6*(lines+rects+glyphs)<16384);
+    // Outside dismissal must not click Clear comparison underneath the popup.
+    input={};input.x=380;input.y=130;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();
+    input={};input.x=700;input.y=145;input.pressed=SWOFTY_MOUSE_LEFT;opponent_selected=false;draw_grid();
+    check(opponent_selected && cross.open());
+    input={};input.x=380;input.y=130;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();
+    input={};input.keys_pressed[27/8]|=1u<<(27%8);draw_grid();check(cross.open());
     input={};input.x=60+610+3*230;input.y=180;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();
     input={};lines=rects=glyphs=0;amber=cyan=false;draw_grid();
     check(unavailable_hint && cyan && !amber && 6*(lines+rects+glyphs)<16384);
@@ -103,5 +110,17 @@ int main() {
     // A valid global rewind hides an opponent's stale future while its metadata is missing.
     auto rewind=fixture::pedals(7,.001f);grid->accept(rewind,.07);draw_grid();
     check(!cross.open() && grid->driver(1).size()==0);
+    grid->reset();grid->accept(fixture::session(),0);grid->accept(multi_fixture::participants(1,.01f,22),.01);
+    input={};input.keys_pressed[119/8]|=1u<<(119%8);draw_grid();check(cross.open());
+    input={};input.x=380;input.y=130;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();
+    for(int n=0;n<2;++n) {input={};input.x=530;input.y=175;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();}
+    input={};lines=rects=glyphs=0;draw_grid();check(last_driver_visible && 6*(lines+rects+glyphs)<16384);
+    input={};input.x=380;input.y=540;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();
+    check(last_driver_selected); // eighth entry on the final page is car 22
+    // Wheel scrolling and Escape dismiss do not change the selected driver.
+    input={};input.x=380;input.y=130;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();
+    input={};input.x=380;input.y=300;input.wheel=1;draw_grid();
+    input={};input.keys_pressed[27/8]|=1u<<(27%8);draw_grid();check(cross.open());
+    input={};last_driver_selected=false;draw_grid();check(last_driver_selected);
     std::cout<<"Panel focus, feature-gating and draw-budget checks passed\n";
 }

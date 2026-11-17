@@ -55,7 +55,7 @@ Choose a corner, then move inward with **Horizontal position** and **Vertical po
 
 Leave **Record session laps in memory** on while driving. Pause during the session (or return to the garage unpaused), release held controls, and press **F8** while the game window is active.
 
-Choose drivers independently with the **X >** and **Y >** buttons. Use **Laps: X driver / Y driver** to choose whose list to browse, then select **X** and **Y** beside completed laps. X is cyan and Y is amber, with separate comparison graphs for throttle and brake. Scroll over a graph to zoom, drag to pan, and use **Reset view** to fit the lap. Press **Escape**, **Close**, or your review key to return to the game. The review key can be changed to F6–F12.
+Choose drivers independently with the **X v** and **Y v** buttons. Use **Laps: X driver / Y driver** to choose whose list to browse, then select **X** and **Y** beside completed laps. X is cyan and Y is amber, with separate comparison graphs for throttle and brake. Scroll over a graph to zoom, drag to pan, and use **Reset view** to fit the lap. Press **Escape**, **Close**, or your review key to return to the game. The review key can be changed to F6–F12.
 
 **Detailed traces share 128 slots across the whole field**, including active laps; later laps show **NO TRACE** but retain timing. With 22 cars this covers roughly the first five to six laps per car. Slip and aero data remain player-only; restricted opponent ERS is shown as unavailable. See [multi-driver review](docs/MULTI_DRIVER_REVIEW.md) for limits and validation.
 
