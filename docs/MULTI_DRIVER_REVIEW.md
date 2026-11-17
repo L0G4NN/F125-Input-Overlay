@@ -4,7 +4,7 @@ Implemented on top of PR #15 and main `d7c6c56`. Synthetic validation and Window
 
 ## User controls
 
-The X and Y driver buttons independently cycle through known participants. Each shows the car slot and a shortened driver name. Selecting a driver clears that side's old lap selection. The Laps button switches the list between the X driver's and Y driver's completed laps; Previous/Next and the list wheel paginate that driver's history. Press X or Y beside a lap to assign that exact driver/lap pair. Selection summaries show each driver's name and its own lap number.
+The X and Y driver dropdowns independently select known participants. Each list shows eight drivers at a time; scroll or use Previous/Next to reach the rest. Escape or clicking outside dismisses the list without changing the selection. Each shows the car slot and a shortened driver name. Selecting a different driver clears that side's old lap selection; reselecting the same driver preserves it. The Laps button switches the list between the X driver's and Y driver's completed laps; Previous/Next and the list wheel paginate that driver's history. Press X or Y beside a lap to assign that exact driver/lap pair. Selection summaries show each driver's name and its own lap number.
 
 Supported combinations:
 

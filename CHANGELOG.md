@@ -2,6 +2,10 @@
 
 ## Unreleased — multi-driver lap review
 
+- Restyle F8 with charcoal/slate surfaces, outlined controls, cyan/amber driver and lap accents, selected-tab underlines, lap-time summaries and labelled graph scales. Keep separate/shared views and all interaction behaviour.
+
+- Replace X/Y driver cycling with paged dropdown lists; preserve independent selections and prevent clicks/scrolls reaching controls underneath.
+
 - Remove paused F8 telemetry-freshness/latch and held-input/navigation blockers; retain explicit close, resume-on-track and focus/window-loss cleanup.
 
 - Independent X/Y driver and completed-lap selection, retaining all five pages and distance controls.
