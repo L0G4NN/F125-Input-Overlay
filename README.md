@@ -11,7 +11,7 @@ The display uses game-reported inputs, not pedal force or raw hardware readings.
 
 ## Preview
 
-These previews show the earlier single-driver layout. The current F8 panel uses a charcoal/slate theme, outlined driver dropdowns, cyan X and amber Y accents, selected-tab underlines and labelled chart scales. The dropdown and theme changes are covered by portable tests; in-game visual validation remains pending.
+The live HUD image shows the earlier layout. The F8 preview is rendered from the current panel using synthetic lap data; in-game appearance may vary.
 
 ### Live inputs
 
@@ -19,7 +19,7 @@ These previews show the earlier single-driver layout. The current F8 panel uses 
 
 ### F8 lap comparison
 
-![Bahrain lap comparison](docs/images/Bahrain-F8-Overlay.png)
+![F8 lap comparison with the current theme and synthetic laps](docs/images/F8-themed-preview.svg)
 
 ## Install and start driving
 
