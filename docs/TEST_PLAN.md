@@ -97,3 +97,7 @@ A newer overall frame with backwards source time or lap number starts rollback. 
 F8 now opens whenever Swofty reports a pause, without a fresh-UDP or pre-pause latch requirement. Held keys, controller buttons, triggers, stick drift and other navigation no longer block opening or automatically close review. F8, Escape and Close still close it; resuming on track, window/focus loss, reset and disable still release focus. Unpaused access remains garage-only. Close review manually before setup typing or flashback controls. This supersedes earlier freshness/held-control restrictions above; in-game behaviour remains to be verified.
 
 Driver dropdown regression covers independent X/Y selection, reaching car 22 by pagination, wheel scrolling, outside-click consumption, Escape dismissal, and geometry bounds. No recorder or pause-policy changes are made.
+
+## F8 theme (PR #17)
+
+The charcoal/slate theme uses existing rect/line/text APIs only, with a shared RRGGBBAA palette. Portable dropdown, focus, five-page comparison and 16,384-vertex budget checks pass with the new controls and axis labels; Windows x64 cross-compilation passes. A synthetic drawing capture was inspected for spacing. The mockup is design guidance, not a game screenshot; actual font rendering, DPI and game readability remain manual checks. No telemetry, recording, live-HUD or input-policy changes.

@@ -11,7 +11,7 @@ The display uses game-reported inputs, not pedal force or raw hardware readings.
 
 ## Preview
 
-These previews show the earlier single-driver layout; the current X/Y driver selectors are described below.
+These previews show the earlier single-driver layout. The current F8 panel uses a charcoal/slate theme, outlined driver dropdowns, cyan X and amber Y accents, selected-tab underlines and labelled chart scales. The dropdown and theme changes are covered by portable tests; in-game visual validation remains pending.
 
 ### Live inputs
 
@@ -53,7 +53,7 @@ Choose a corner, then move inward with **Horizontal position** and **Vertical po
 
 ## Compare driver laps
 
-Leave **Record session laps in memory** on while driving. Pause during the session (or return to the garage unpaused), release held controls, and press **F8** while the game window is active.
+Leave **Record session laps in memory** on while driving. Pause during the session (or return to the garage unpaused), press **F8** while the game window is active.
 
 Choose drivers independently with the **X v** and **Y v** buttons. Use **Laps: X driver / Y driver** to choose whose list to browse, then select **X** and **Y** beside completed laps. X is cyan and Y is amber, with separate comparison graphs for throttle and brake. Scroll over a graph to zoom, drag to pan, and use **Reset view** to fit the lap. Press **Escape**, **Close**, or your review key to return to the game. The review key can be changed to F6–F12.
 
@@ -65,7 +65,7 @@ Recorded laps stay in memory only. Exiting the game or a session reset clears th
 
 - **No panel while driving:** check the addon is enabled, the overlay feature is permitted, and UDP matches the table above. Missing or stale telemetry hides the panel by default.
 - **Waiting for UDP:** check format **2025**, address `127.0.0.1` and port `20777`. Close other apps listening on that port and restart the game.
-- **F8 does nothing:** pause from an active session or return to the garage, release held controls and keep the game window active. Check recording and the master toggle are on. Older cores can support the live HUD without lap review.
+- **F8 does nothing:** pause from an active session or return to the garage, keep the game window active. Check recording and the master toggle are on. Older cores can support the live HUD without lap review.
 
 See [installation, settings and troubleshooting](docs/INSTALL.md), or [report a problem](https://github.com/L0G4NN/F125-Input-Overlay/issues).
 
@@ -78,7 +78,7 @@ See [installation, settings and troubleshooting](docs/INSTALL.md), or [report a 
 
 The live HUD is hidden in garage/paused/unknown contexts by default to avoid covering game-menu text. See [issue #8 validation](docs/SETUP_NAMING.md) for the mitigation, troubleshooting override and remaining in-game check.
 
-Review closes when resuming on track and refuses focus while keyboard/controller controls are held. Paused access cannot distinguish ordinary pause from replay/flashback; close F8 before using flashback controls. The reported stuck-throttle behaviour still requires in-game verification; this addon does not write vehicle inputs.
+Review closes when resuming on track. Held controls do not block paused review. Paused access cannot distinguish ordinary pause from replay/flashback; close F8 before using flashback controls. The reported stuck-throttle behaviour still requires in-game verification; this addon does not write vehicle inputs.
 
 F8 also includes Speed/Gear, ERS, per-wheel Slip and Aero Height pages, with dashed S2/S3 boundaries. The live HUD shows the reported front-wheel steering angle in degrees. Extended recording uses a fixed 52.4 MiB pool; see [extended telemetry](docs/EXTENDED_TELEMETRY.md) for units, 16 m resolution and validation limits.
 
