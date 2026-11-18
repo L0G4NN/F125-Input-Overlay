@@ -57,7 +57,7 @@ Leave **Record session laps in memory** on while driving. Pause during the sessi
 
 Choose drivers independently with the **X v** and **Y v** buttons. Use **Laps: X driver / Y driver** to choose whose list to browse, then select **X** and **Y** beside completed laps. X is cyan and Y is amber, with separate comparison graphs for throttle and brake. Scroll over a graph to zoom, drag to pan, and use **Reset view** to fit the lap. Press **Escape**, **Close**, or your review key to return to the game. The review key can be changed to F6–F12.
 
-**Detailed traces share 128 slots across the whole field**, including active laps; later laps show **NO TRACE** but retain timing. With 22 cars this covers roughly the first five to six laps per car. Slip and aero data remain player-only; restricted opponent ERS is shown as unavailable. See [multi-driver review](docs/MULTI_DRIVER_REVIEW.md) for limits and validation.
+**F8 retains up to 70 detailed completed laps per driver**, plus the active lap, for up to 22 cars. Later laps show **NO TRACE** and retain timing. Very long layouts may lower the per-driver quota to stay within the 256 MiB recorder budget. F8 displays the session quota. Slip and aero data remain player-only; restricted opponent ERS is shown as unavailable. See [multi-driver review](docs/MULTI_DRIVER_REVIEW.md) for limits and validation.
 
 Recorded laps stay in memory only. Exiting the game or a session reset clears them. A detected rewind preserves earlier laps and the affected lap’s prefix, discarding the abandoned suffix and later laps. There is no save or export feature. See the [full user guide](docs/INSTALL.md#review-and-compare-laps) for controls and recording limits.
 
@@ -80,7 +80,7 @@ The live HUD is hidden in garage/paused/unknown contexts by default to avoid cov
 
 Review closes when resuming on track. Held controls do not block paused review. Paused access cannot distinguish ordinary pause from replay/flashback; close F8 before using flashback controls. The reported stuck-throttle behaviour still requires in-game verification; this addon does not write vehicle inputs.
 
-F8 also includes Speed/Gear, ERS, per-wheel Slip and Aero Height pages, with dashed S2/S3 boundaries. The live HUD shows the reported front-wheel steering angle in degrees. Extended recording uses a fixed 52.4 MiB pool; see [extended telemetry](docs/EXTENDED_TELEMETRY.md) for units, 16 m resolution and validation limits.
+F8 also includes Speed/Gear, ERS, per-wheel Slip and Aero Height pages, with dashed S2/S3 boundaries. The live HUD shows the reported front-wheel steering angle in degrees. See [extended telemetry](docs/EXTENDED_TELEMETRY.md) for units, 16 m resolution and validation limits.
 
 
 ## F8 pause access update

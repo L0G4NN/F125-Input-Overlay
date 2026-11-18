@@ -22,6 +22,7 @@ struct Plot {
             int idx=selection?y:x;
             if(idx<0 || std::size_t(idx)>=r.size()) continue;
             const auto& lap=r.lap(std::size_t(idx));
+            if(lap.limited) continue;
             auto first=std::size_t(std::clamp(begin/spacing,0.f,float(count-1)));
             auto last=std::size_t(std::clamp(end/spacing,0.f,float(count-1)));
             int previous_bin[2]{-1,-1},previous_col[2]{-1,-1};

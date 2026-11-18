@@ -77,8 +77,8 @@ Review focus does not block controllers or wheels, and DirectInput wheels may no
 
 - Laps stay in memory only. There is no disk telemetry recording, export or upload.
 - Exiting the game or a session reset clears recordings. Rewinds clear X/Y selections, retain earlier laps and the affected lap prefix, and delete the abandoned suffix and later laps. The boundary bin is discarded; rewritten laps are marked partial.
-- The entire field shares 128 detailed trace slots, including active laps. With 22 cars this stores roughly the first five to six laps per car. Later laps retain timing metadata and show **NO TRACE**, with a hard guard of 1,024 metadata entries per car.
-- The shared pools and all 22 recorder states reserve about 53.21 MiB; plots add small fixed caches. It is allocated at startup and remains allocated until game exit, even with recording off.
+- Each of up to 22 drivers retains up to 70 detailed completed laps plus an active lap. The track length determines the space per trace and can reduce the quota equally for all drivers. F8 shows the session quota. Later laps retain timing and show **NO TRACE**, up to 1,024 metadata entries per driver.
+- The recorder reserves startup backing within a 256 MiB budget. The validated track length determines the storage used by each driver. See [multi-driver review](MULTI_DRIVER_REVIEW.md#memory-and-race-length) for examples.
 - Unknown track IDs and tracks longer than 16,384 m are not recorded.
 
 ## Troubleshooting
@@ -110,7 +110,7 @@ Actual import/load, keyboard/mouse/controller/wheel behaviour, pause/flashback h
 
 ## Multi-driver review (current)
 
-[Multi-driver review](MULTI_DRIVER_REVIEW.md) supersedes the player-only recording and trace-count descriptions above. X/Y select independent drivers and completed laps. One 128-slot detailed pool is shared across all cars (including active laps), with 1,024 timing entries per car and a measured 53.21 MiB total reservation. Local HUD and the PR #15 pause/focus gates still use only local-player state. Opponent slip/aero data and restricted ERS remain unavailable. See that document for controls, retention limits, packet offsets, rewind handling and validation evidence.
+[Multi-driver review](MULTI_DRIVER_REVIEW.md) supersedes the player-only recording and trace-count descriptions above. X/Y select independent drivers and completed laps. Each car has up to 70 detailed completed laps, one active trace and 1,024 timing entries. Track length determines the per-driver quota under the 256 MiB recorder budget. Local HUD and the PR #15 pause/focus gates still use only local-player state. Opponent slip/aero data and restricted ERS remain unavailable. See that document for controls, retention limits, packet offsets, rewind handling and validation evidence.
 
 
 ## F8 pause access update

@@ -1,7 +1,9 @@
 #pragma once
 #include "lap_review.hpp"
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
+#include <type_traits>
 
 namespace input_trace::review {
 struct Participant {
@@ -31,21 +33,61 @@ inline bool decode_participants(std::span<const unsigned char> p,Pedals& h,
     }
     return true;
 }
-// One shared trace/extra pool. Each car owns its pairing, ordering, lap history
-// and rewind state; selecting a different driver never changes the live player.
+// Reserve zero-backed storage at load. Each session partitions it into
+// distance-sized, independent driver slices, with one extra slot per active lap.
+constexpr unsigned field_size=22, race_lap_limit=70, opponent_channels=4;
+constexpr std::size_t telemetry_budget=256u*1024*1024;
+// Leave room for per-driver metadata, allocator rounding and split arenas.
+constexpr std::size_t history_budget=255u*1024*1024;
+struct TrackHistory {
+    unsigned pedals, extended, slots;
+    constexpr explicit TrackHistory(unsigned length)
+        : pedals((length+1)/2),extended((length+15)/16),
+          slots(unsigned(std::min<std::size_t>(race_lap_limit+1,
+              history_budget/(field_size*pedals*sizeof(Bin)+
+                  (extra_channels+(field_size-1)*opponent_channels)*extended*sizeof(ExtraBin))))) {}
+    constexpr std::size_t pedal_count() const {return std::size_t(field_size)*pedals*slots;}
+    constexpr std::size_t extra_count() const {
+        return std::size_t(extra_channels+(field_size-1)*opponent_channels)*extended*slots;
+    }
+};
+constexpr auto history_backing=[] {
+    std::array<std::size_t,2> sizes{};
+    for(unsigned length=100;length<=2*bins_per_lap;++length) {
+        const TrackHistory layout(length);
+        sizes[0]=std::max(sizes[0],layout.pedal_count());
+        sizes[1]=std::max(sizes[1],layout.extra_count());
+    }
+    return sizes;
+}();
+
 class MultiRecorder {
+    static void* zero_allocate(std::size_t bytes) {return std::calloc(1,bytes);}
+    template<class T>
+    static T* init_array(void* zeroed,std::size_t size) {
+        // Start the lifetime of trivial bins without writing over zero pages.
+        static_assert(std::is_trivially_default_constructible_v<T>);
+        return zeroed?::new(zeroed) T[size]:nullptr;
+    }
 public:
-    bool initialize() {
-        if(!pool_) pool_.reset(new(std::nothrow) TracePool);
-        if(!extra_) extra_.reset(new(std::nothrow) ExtraPool);
-        if(!pool_ || !extra_) return false;
-        for(auto& r:cars_) r.attach(*pool_,*extra_);
+    using Allocate=void* (*)(std::size_t);
+    using Release=void (*)(void*);
+    // The allocator returns aligned, zero-backed storage or nullptr.
+    bool initialize(Allocate allocate=zero_allocate,Release release=std::free) {
+        if(available()) return true;
+        std::unique_ptr<Bin,Release> pedals(
+            init_array<Bin>(allocate(history_backing[0]*sizeof(Bin)),history_backing[0]),release);
+        if(!pedals) return false;
+        std::unique_ptr<ExtraBin,Release> extra(
+            init_array<ExtraBin>(allocate(history_backing[1]*sizeof(ExtraBin)),history_backing[1]),release);
+        if(!extra) return false;
+        pool_=std::move(pedals);extra_=std::move(extra);
         return true;
     }
     void reset() {
         for(auto& r:cars_) r.reset();
         roster_={};roster_seen_=false;session_=false;opponents_fresh_=false;
-        identity_known_={};
+        identity_known_={};capacity_=0;active_storage_=0;
         ++generation_;
     }
     void gap() {for(auto& r:cars_) r.gap();}
@@ -88,7 +130,11 @@ public:
         for(const auto& r:cars_) if(r.metadata_limit()) return true;
         return false;
     }
-    static constexpr std::size_t storage_bytes() {return sizeof(TracePool)+sizeof(ExtraPool);}
+    unsigned detailed_lap_capacity() const {return capacity_;}
+    std::size_t active_storage_bytes() const {return active_storage_;}
+    static constexpr std::size_t storage_bytes() {
+        return history_backing[0]*sizeof(Bin)+history_backing[1]*sizeof(ExtraBin);
+    }
     void accept(std::span<const unsigned char> p,double wall) {
         if(p.size()<29 || !std::isfinite(wall)) return;
         Pedals h{};
@@ -102,7 +148,10 @@ public:
                 if(h.session!=uid_) retired_[retire_pos_++%retired_.size()]=uid_;
                 reset();
             }
-            if(!session_) ++generation_;
+            if(!session_) {
+                configure_history(len,h.player);
+                ++generation_;
+            }
             session_=true;uid_=h.session;player_=h.player;track_=p[36];length_=len;session_frame_=h.frame;
             std::copy(p.begin(),p.end(),session_packet_.begin());
             for(unsigned i=0;i<22;++i) cars_[i].accept(p,wall,i);
@@ -130,7 +179,6 @@ public:
         const bool fresh=roster_seen_ && wall>=roster_wall_ && wall-roster_wall_<=10;
         if(!fresh && opponents_fresh_) for(unsigned i=0;i<22;++i) if(i!=player_) cars_[i].gap();
         opponents_fresh_=fresh;
-        // Player first gives it priority when simultaneous starts consume the last slots.
         dispatch(player_,p,wall);
         if(!fresh) return;
         for(unsigned i=0;i<22;++i) if(i!=player_ && roster_[i].active) {
@@ -139,6 +187,20 @@ public:
         }
     }
 private:
+    void configure_history(unsigned length,unsigned player) {
+        if(!available()) return;
+        const TrackHistory layout(length);
+        capacity_=layout.slots-1;
+        active_storage_=layout.pedal_count()*sizeof(Bin)+layout.extra_count()*sizeof(ExtraBin);
+        auto* pedals=pool_.get();
+        auto* extra=extra_.get();
+        for(unsigned i=0;i<field_size;++i) {
+            const unsigned channels=i==player?extra_channels:opponent_channels;
+            cars_[i].attach(pedals,extra,stamp_,layout.slots,capacity_,channels,layout.pedals,layout.extended);
+            pedals+=layout.slots*layout.pedals;
+            extra+=layout.slots*channels*layout.extended;
+        }
+    }
     static bool newer(std::uint32_t a,std::uint32_t b) {return a!=b && std::uint32_t(a-b)<0x80000000u;}
     const Recorder& local() const {return cars_[player_];}
     void dispatch(unsigned i,std::span<const unsigned char> p,double wall) {
@@ -153,8 +215,8 @@ private:
             ++generation_;
         }
     }
-    std::unique_ptr<TracePool> pool_;
-    std::unique_ptr<ExtraPool> extra_;
+    std::unique_ptr<Bin,Release> pool_{nullptr,std::free};
+    std::unique_ptr<ExtraBin,Release> extra_{nullptr,std::free};
     std::array<Recorder,22> cars_{};
     std::array<std::uint32_t,22> identity_frame_{};
     std::array<bool,22> identity_known_{};
@@ -164,9 +226,10 @@ private:
     std::size_t retire_pos_{};
     std::uint64_t uid_{};
     std::uint32_t session_frame_{},roster_frame_{};
-    unsigned player_{},generation_{},track_{},length_{};
+    std::size_t active_storage_{};
+    unsigned player_{},generation_{},track_{},length_{},stamp_{},capacity_{};
     double roster_wall_{};
     bool session_{},roster_seen_{},opponents_fresh_{};
 };
-static_assert(MultiRecorder::storage_bytes()+sizeof(MultiRecorder)<64u*1024*1024);
+static_assert(MultiRecorder::storage_bytes()+sizeof(MultiRecorder)<telemetry_budget);
 }

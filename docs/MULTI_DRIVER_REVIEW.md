@@ -32,11 +32,11 @@ Names are copied from the bounded 32-byte field, terminated locally, stripped of
 
 ## Memory and race length
 
-There is **one shared 128-slot detailed-trace budget**, including active laps, across all recorded cars. It is not 128 laps per driver. Slots are allocated first-come at lap start, with the local car processed first on a common packet. With a full 22-car field this retains roughly the first five to six detailed laps per car; subsequent laps are explicitly **NO TRACE** with timing/quality metadata only. This is an intentional bounded first implementation, not a full-race detailed archive for every driver. No silent eviction or resampling is performed.
+Each of the 22 driver slots can retain up to **70 completed detailed laps plus one active lap**. The validated Session packet supplies the track length. Each lap reserves one pedal bin per 2 m and one extended-channel bin per 16 m, rounding up to cover the finish. The local player reserves all 14 extended channels, and each opponent reserves four (speed, gear and two ERS channels). The float extrema and their gap links retain their existing precision.
 
-Both trace arrays remain the existing 129-element allocation (the extra legacy slot is unused). Combined pool storage is 54,952,068 bytes including the slot allocator. Each of the 22 drivers has a fixed 1,024-entry metadata list and separate bounded packet-pairing/order state. Total pools plus all recorder state: **55,790,756 bytes (53.21 MiB)** on the validation host, guarded below 64 MiB at compile time. Global monotonic stamps prevent a reused slot exposing another car's old samples. Session reset, discarded unfinished laps, identity changes and rewinds return owned slots to the shared allocator. No whole-trace copies occur at completion.
+The total recorder budget is **256 MiB**, including history backing and per-driver state. The validation build uses 268,285,152 bytes (255.86 MiB) of backing and recorder state. On a 7,004 m layout, the active track layout addresses about **171.7 MiB** of lap-bin storage. On a 1,000 m layout it addresses about **24.6 MiB**. On the longest accepted 16,384 m layout, the quota is **44 completed laps plus one active lap per driver**. F8 displays the calculated quota. After a driver fills their quota, new active laps still have a trace slot. At completion those laps retain timing and quality metadata and appear as **NO TRACE**. Each driver can retain 1,024 timing entries.
 
-Normal ingestion visits at most 22 cars, regardless of lap count, and never allocates after initialization. Slot search is bounded to 128 entries and only occurs at lap start. One nonblocking socket and the 128-datagram-per-paint receive budget are unchanged. Only the two selected laps and selected page build/draw while F8 is open. No threads, locks or disk writes are added.
+Windows reserves and commits zero-backed virtual pages at addon load. Physical pages are first touched as recording uses them. A track change repartitions the existing backing using track-sized regions, and session-wide stamps hide data from old regions without clearing the backing. Session reset, interrupted laps, participant changes and rewind return owned slots to their driver. Lap transitions use a fixed per-driver free-slot stack. There is no full-lap copy, bulk initialization or memory allocation in the paint callback. The 128-datagram receive budget remains in place, and F8 builds plots only for the selected laps and page.
 
 ## Rewind and F8 safeguards
 
@@ -50,7 +50,7 @@ A validated rewind in any recorded car invalidates future history across the fie
 
 ## Validation
 
-`ASAN_OPTIONS=detect_leaks=0 bash scripts/test.sh` runs the existing regression suite plus multi-driver tests. Leak detection is disabled only for this host's tracing restrictions. ASan/UBSan remain enabled. Tests cover cross-driver values/timings, independent lap transitions, per-car frame pairing, unsupported Motion Ex, ERS restrictions, participant truncation and labels, malformed high-frame isolation, nonzero player safety, unchanged roster refresh, global rewinds, missing target metadata, and 22 cars over 200 laps (4,378 completed metadata entries, exactly 128 retained traces).
+`ASAN_OPTIONS=detect_leaks=0 bash scripts/test.sh` runs the existing regression suite plus multi-driver tests. Leak detection is disabled only for this host's tracing restrictions. ASan/UBSan remain enabled. Tests cover cross-driver values/timings, independent lap transitions, per-car frame pairing, unsupported Motion Ex, ERS restrictions, participant truncation and labels, malformed high-frame isolation, nonzero player safety, unchanged roster refresh, global rewinds, missing target metadata, 22 cars over 200 laps (4,378 completed metadata entries, 1,540 retained traces), an oversized track with equal reduced quotas, and reuse across track and player changes.
 
 Additional repeatable commands:
 
@@ -64,7 +64,11 @@ ZIG=/path/to/zig-0.14.1 bash scripts/build.sh
 
 The deterministic mutation test exercises 300,000 packets; it is not coverage-guided libFuzzer. Benchmarks measure synthetic CPU ingestion and plot generation, not game frame time or GPU cost. Actual AI data availability, names, final-lap timing, flashback controls, launcher import and CPU/GPU impact require the real game.
 
-### Synthetic performance result (16 November 2026)
+### Track-sized recorder benchmark
+
+The same GCC `-O2` synthetic fixture fed 60,000 four-packet iterations with 22 cars at 0, 78, 128 and 200 completed laps per car. Across two runs, recording took 3.0–3.5 µs per iteration with zero C++ allocations. The prior recorder took 3.4–3.6 µs while all cars had active traces. Its later scenarios cost less in some runs because the shared pool ran out of detail slots. The new recorder continues collecting the active lap after the completed-lap quota is full. These measurements cover packet ingestion only. Windows game callback frame time and working set still need validation.
+
+### Previous shared-pool benchmark (16 November 2026)
 
 GCC `-O2` on this Linux host, 60,000 four-packet iterations with 22 active cars per scenario; fixed fixtures prepared before timing. The pair of selected traces in the plot microbenchmark is sparse (0/32 m samples on a 1,000 m track), so these plot figures are not a worst-case dense rendering measurement.
 
