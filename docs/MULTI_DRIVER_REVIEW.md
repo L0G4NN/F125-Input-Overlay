@@ -1,4 +1,4 @@
-# Multi-driver F8 lap comparison
+# Multi-driver lap comparison (F6 default)
 
 Implemented on top of PR #15 and main `d7c6c56`. Synthetic validation and Windows compilation are separate from actual F1 25/Swofty validation, which remains pending.
 
@@ -26,23 +26,23 @@ A lap number belongs to its driver; it does not refer to the leader's lap or a c
 
 The header's local-player index remains distinct from the selected car-array index. The live pedal HUD, steering readout, garage visibility and pause/focus safety all follow the local player, even when an AI car is in its garage or selected for review. Multiplayer, split-screen, spectator mode and UDP format 2026 remain outside the supported scope.
 
-Opponent recording starts only after a validated Participants packet establishes active slots. Participant packets older than ten seconds suspend opponent ingestion until refreshed; a gap is inserted. Existing completed traces remain readable. Ordinary unchanged participant refreshes do not close F8 or reset selections. Identity or telemetry-permission changes clear the affected car's history, release its slots and invalidate selections. Packets preceding that identity change cannot populate the replacement occupant's history.
+Opponent recording starts only after a validated Participants packet establishes active slots. Participant packets older than ten seconds suspend opponent ingestion until refreshed; a gap is inserted. Existing completed traces remain readable. Ordinary unchanged participant refreshes do not close F6 or reset selections. Identity or telemetry-permission changes clear the affected car's history, release its slots and invalidate selections. Packets preceding that identity change cannot populate the replacement occupant's history.
 
 Names are copied from the bounded 32-byte field, terminated locally, stripped of control bytes and displayed with non-ASCII bytes replaced by `?` for the default font. Car slot numbers distinguish similar/truncated names. Missing names use a car-number fallback. No remote strings are used as format strings.
 
 ## Memory and race length
 
-There is **one shared 128-slot detailed-trace budget**, including active laps, across all recorded cars. It is not 128 laps per driver. Slots are allocated first-come at lap start, with the local car processed first on a common packet. With a full 22-car field this retains roughly the first five to six detailed laps per car; subsequent laps are explicitly **NO TRACE** with timing/quality metadata only. This is an intentional bounded first implementation, not a full-race detailed archive for every driver. No silent eviction or resampling is performed.
+Each of the 22 driver slots can retain up to **70 completed detailed laps plus one active lap**. The validated Session packet supplies the track length. Each lap reserves one pedal bin per 2 m and one extended-channel bin per 16 m, rounding up to cover the finish. The local player reserves all 14 extended channels, and each opponent reserves four (speed, gear and two ERS channels). The float extrema and their gap links retain their existing precision.
 
-Both trace arrays remain the existing 129-element allocation (the extra legacy slot is unused). Combined pool storage is 54,952,068 bytes including the slot allocator. Each of the 22 drivers has a fixed 1,024-entry metadata list and separate bounded packet-pairing/order state. Total pools plus all recorder state: **55,790,756 bytes (53.21 MiB)** on the validation host, guarded below 64 MiB at compile time. Global monotonic stamps prevent a reused slot exposing another car's old samples. Session reset, discarded unfinished laps, identity changes and rewinds return owned slots to the shared allocator. No whole-trace copies occur at completion.
+The total recorder budget is **256 MiB**, including history backing and per-driver state. The validation build uses 268,285,152 bytes (255.86 MiB) of backing and recorder state. On a 7,004 m layout, the active track layout addresses about **171.7 MiB** of lap-bin storage. On a 1,000 m layout it addresses about **24.6 MiB**. On the longest accepted 16,384 m layout, the quota is **44 completed laps plus one active lap per driver**. F6 displays the calculated quota. After a driver fills their quota, new active laps still have a trace slot. At completion those laps retain timing and quality metadata and appear as **NO TRACE**. Each driver can retain 1,024 timing entries.
 
-Normal ingestion visits at most 22 cars, regardless of lap count, and never allocates after initialization. Slot search is bounded to 128 entries and only occurs at lap start. One nonblocking socket and the 128-datagram-per-paint receive budget are unchanged. Only the two selected laps and selected page build/draw while F8 is open. No threads, locks or disk writes are added.
+Windows reserves and commits zero-backed virtual pages at addon load. Physical pages are first touched as recording uses them. A track change repartitions the existing backing using track-sized regions, and session-wide stamps hide data from old regions without clearing the backing. Session reset, interrupted laps, participant changes and rewind return owned slots to their driver. Lap transitions use a fixed per-driver free-slot stack. There is no full-lap copy, bulk initialization or memory allocation in the paint callback. The 128-datagram receive budget remains in place, and F6 builds plots only for the selected laps and page.
 
-## Rewind and F8 safeguards
+## Rewind and F6 safeguards
 
-PR #15's opening conditions are preserved: an unpaused fresh garage, or a pause entered with fresh local-player lap metadata and a latched pre-pause context. Resume on track closes review. Held keyboard/controller controls prevent acquisition; typing, other navigation, focus loss and window deactivation release it. Opponent garage states never grant focus. Pauses still cannot reliably distinguish the flashback/replay screen; close F8 before operating flashback. Actual stuck-control behaviour remains an in-game test requirement.
+PR #15's opening conditions are preserved: an unpaused fresh garage, or a pause entered with fresh local-player lap metadata and a latched pre-pause context. Resume on track closes review. Held keyboard/controller controls prevent acquisition; typing, other navigation, focus loss and window deactivation release it. Opponent garage states never grant focus. Pauses still cannot reliably distinguish the flashback/replay screen; close F6 before operating flashback. Actual stuck-control behaviour remains an in-game test requirement.
 
-A validated rewind in any recorded car invalidates future history across the field. Each car waits for its own valid lap metadata to locate its target lap and distance. Its history is hidden while that location is unknown. Earlier laps and the target prefix survive; later laps and the boundary/suffix bins are discarded. The boundary bin is conservatively dropped at 2 m for pedals and 16 m for extended channels. Reopened laps are marked partial. Freed slots may be reused without mixing old and new samples. Selections/cache generation resets and closes F8 on a rewind.
+A validated rewind in any recorded car invalidates future history across the field. Each car waits for its own valid lap metadata to locate its target lap and distance. Its history is hidden while that location is unknown. Earlier laps and the target prefix survive; later laps and the boundary/suffix bins are discarded. The boundary bin is conservatively dropped at 2 m for pedals and 16 m for extended channels. Reopened laps are marked partial. Freed slots may be reused without mixing old and new samples. Selections/cache generation resets and closes F6 on a rewind.
 
 ## Verified packet addition
 
@@ -50,7 +50,7 @@ A validated rewind in any recorded car invalidates future history across the fie
 
 ## Validation
 
-`ASAN_OPTIONS=detect_leaks=0 bash scripts/test.sh` runs the existing regression suite plus multi-driver tests. Leak detection is disabled only for this host's tracing restrictions. ASan/UBSan remain enabled. Tests cover cross-driver values/timings, independent lap transitions, per-car frame pairing, unsupported Motion Ex, ERS restrictions, participant truncation and labels, malformed high-frame isolation, nonzero player safety, unchanged roster refresh, global rewinds, missing target metadata, and 22 cars over 200 laps (4,378 completed metadata entries, exactly 128 retained traces).
+`ASAN_OPTIONS=detect_leaks=0 bash scripts/test.sh` runs the existing regression suite plus multi-driver tests. Leak detection is disabled only for this host's tracing restrictions. ASan/UBSan remain enabled. Tests cover cross-driver values/timings, independent lap transitions, per-car frame pairing, unsupported Motion Ex, ERS restrictions, participant truncation and labels, malformed high-frame isolation, nonzero player safety, unchanged roster refresh, global rewinds, missing target metadata, 22 cars over 200 laps (4,378 completed metadata entries, 1,540 retained traces), an oversized track with equal reduced quotas, and reuse across track and player changes.
 
 Additional repeatable commands:
 
@@ -64,7 +64,11 @@ ZIG=/path/to/zig-0.14.1 bash scripts/build.sh
 
 The deterministic mutation test exercises 300,000 packets; it is not coverage-guided libFuzzer. Benchmarks measure synthetic CPU ingestion and plot generation, not game frame time or GPU cost. Actual AI data availability, names, final-lap timing, flashback controls, launcher import and CPU/GPU impact require the real game.
 
-### Synthetic performance result (16 November 2026)
+### Track-sized recorder benchmark
+
+The same GCC `-O2` synthetic fixture fed 60,000 four-packet iterations with 22 cars at 0, 78, 128 and 200 completed laps per car. Across two runs, recording took 3.0–3.5 µs per iteration with zero C++ allocations. The prior recorder took 3.4–3.6 µs while all cars had active traces. Its later scenarios cost less in some runs because the shared pool ran out of detail slots. The new recorder continues collecting the active lap after the completed-lap quota is full. These measurements cover packet ingestion only. Windows game callback frame time and working set still need validation.
+
+### Previous shared-pool benchmark (16 November 2026)
 
 GCC `-O2` on this Linux host, 60,000 four-packet iterations with 22 active cars per scenario; fixed fixtures prepared before timing. The pair of selected traces in the plot microbenchmark is sparse (0/32 m samples on a 1,000 m track), so these plot figures are not a worst-case dense rendering measurement.
 
@@ -78,6 +82,6 @@ GCC `-O2` on this Linux host, 60,000 four-packet iterations with 22 active cars 
 The later scenarios are timing-only for current laps after trace storage fills. The faster timings therefore do not imply increasing lap count improves performance. Dense single-player X/Y panel tests still cover all pages, sector lines and cursor readouts under the 16,384-vertex budget; multi-driver UI tests cover independent selectors and unavailable opponent channels. Windows AMD64 build and local package validation pass. No release has been published as part of this change.
 
 
-## F8 pause access update
+## F6 pause access update
 
-F8 now opens whenever Swofty reports a pause, without a fresh-UDP or pre-pause latch requirement. Held keys, controller buttons, triggers, stick drift and other navigation no longer block opening or automatically close review. F8, Escape and Close still close it; resuming on track, window/focus loss, reset and disable still release focus. Unpaused access remains garage-only. Close review manually before setup typing or flashback controls. This supersedes earlier freshness/held-control restrictions above; in-game behaviour remains to be verified.
+F6 now opens whenever Swofty reports a pause, without a fresh-UDP or pre-pause latch requirement. Held keys, controller buttons, triggers, stick drift and other navigation no longer block opening or automatically close review. F6, Escape and Close still close it; resuming on track, window/focus loss, reset and disable still release focus. Unpaused access remains garage-only. Close review manually before setup typing or flashback controls. This supersedes earlier freshness/held-control restrictions above; in-game behaviour remains to be verified.

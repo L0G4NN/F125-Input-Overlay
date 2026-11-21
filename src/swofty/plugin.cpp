@@ -15,7 +15,7 @@
 namespace {
 const SwoftyApi* api{};
 std::atomic<bool> enabled{true}, bars{true}, paused{false}, reset_requested{false}, recording{true}, hide_in_menus{true};
-std::atomic<int> history{5}, width{420}, height{160}, opacity{25}, anchor{0}, horizontal{0}, vertical{0}, review_key{8};
+std::atomic<int> history{5}, width{420}, height{160}, opacity{25}, anchor{0}, horizontal{0}, vertical{0}, review_key{6};
 SOCKET sock=INVALID_SOCKET;
 input_trace::Feed feed;
 input_trace::ReceiveGate receive_gate;
@@ -171,13 +171,17 @@ void register_overlay(double,void*) {
         if(registered) api->log("[input-overlay] overlay registered");
     }
 }
+void* allocate_review_pages(std::size_t bytes) {
+    return VirtualAlloc(nullptr,bytes,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
+}
+void release_review_pages(void* pages) { VirtualFree(pages,0,MEM_RELEASE); }
 void start() {
     HMODULE core=GetModuleHandleW(L"swofty_core.dll");
     using VersionQuery=std::uint32_t (*)();
     auto version=core?std::bit_cast<VersionQuery>(GetProcAddress(core,"SwoftyCoreOverlayVersion")):nullptr;
     pause_query=core?std::bit_cast<PauseQuery>(GetProcAddress(core,"SwoftyCorePauseReasons")):nullptr;
     review_supported=version && version()>=3;
-    if(review_supported && !recorder.initialize()) { review_supported=false; api->log("[input-overlay] review pool allocation failed; live overlay remains enabled"); }
+    if(review_supported && !recorder.initialize(allocate_review_pages,release_review_pages)) { review_supported=false; api->log("[input-overlay] review pool allocation failed; live overlay remains enabled"); }
     if(!review_supported) api->log("[input-overlay] lap review needs overlay input v3; live overlay remains enabled");
     const char* names[]={"enabled","bars","history","width","height","opacity","anchor","horizontal","vertical","recording","review_key","hide_in_menus"};
     for(auto id:names) {
