@@ -15,7 +15,7 @@
 namespace {
 const SwoftyApi* api{};
 std::atomic<bool> enabled{true}, bars{true}, paused{false}, reset_requested{false}, recording{true}, hide_in_menus{true};
-std::atomic<int> history{5}, width{420}, height{160}, opacity{25}, anchor{0}, horizontal{0}, vertical{0}, review_key{8};
+std::atomic<int> history{5}, width{420}, height{160}, opacity{25}, anchor{0}, horizontal{0}, vertical{0}, review_key{6};
 SOCKET sock=INVALID_SOCKET;
 input_trace::Feed feed;
 input_trace::ReceiveGate receive_gate;

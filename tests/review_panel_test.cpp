@@ -9,6 +9,9 @@
 #include <iostream>
 using namespace input_trace::review;
 namespace {
+constexpr int default_hotkey=117; // Win32 VK_F6
+int bound_hotkey=default_hotkey;
+char rendered_key_hint[64]{};
 bool opponent_selected=false,unavailable_hint=false,last_driver_visible=false,last_driver_selected=false;
 SwoftyInput input{}; int sectors=0; int glyphs=0; bool amber=false,cyan=false; int focus_calls=0, lines=0, texts=0,rects=0, input_calls=0; bool focused=false; int focus_result=SWOFTY_ASSET_OK;
 int read_input(const SwoftyPaint*,SwoftyInput* out) { ++input_calls; *out=input; out->focused=focused; return SWOFTY_ASSET_OK; }
@@ -16,7 +19,7 @@ int focus(int on) { ++focus_calls; if(focus_result==SWOFTY_ASSET_OK || !on) focu
 void size(const SwoftyPaint*,float* w,float* h) {*w=1920;*h=1080;}
 void rect(SwoftyPaint*,float,float,float,float,uint32_t) {++rects;}
 void line(SwoftyPaint*,float x,float y,float a,float b,float,uint32_t colour) {if(colour==0xffffff80) ++sectors;if(colour==0xffbd59ff) amber=true;if(colour==Theme::x) cyan=true;if(!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(a)||!std::isfinite(b))std::abort();++lines;}
-void text(SwoftyPaint*,float,float,float,uint32_t,const char* str) {++texts;glyphs+=int(std::strlen(str));if(std::strstr(str,"22  Driver 22"))last_driver_visible=true;if(std::strstr(str,"Y: Driver 22 / no lap"))last_driver_selected=true;if(std::strstr(str,"Y: Driver 2 / lap 1"))opponent_selected=true;if(std::strstr(str,"Player-only"))unavailable_hint=true;}
+void text(SwoftyPaint*,float,float,float,uint32_t,const char* str) {++texts;glyphs+=int(std::strlen(str));if(std::strstr(str,"22  Driver 22"))last_driver_visible=true;if(std::strstr(str,"Y: Driver 22 / no lap"))last_driver_selected=true;if(std::strstr(str,"Y: Driver 2 / lap 1"))opponent_selected=true;if(std::strstr(str,"Player-only"))unavailable_hint=true;if(std::strstr(str," / Esc  Close review"))std::snprintf(rendered_key_hint,sizeof rendered_key_hint,"%s",str);}
 void check(bool ok) {if(!ok)std::abort();}
 }
 int main() {
@@ -24,19 +27,24 @@ int main() {
     fixture::pair(r,1,0,1,.01f);fixture::pair(r,1,998,2,.02f);r.accept(fixture::meta(2,0,3,.03f),.03);
     SwoftyOverlay ov{};ov.input=read_input;ov.focus=focus;ov.size=size;ov.rect=rect;ov.line=line;ov.text=text;
     SwoftyApi api{};api.overlay=&ov;Panel p;
-    auto paint=[&](bool safe=true,bool active=true,bool supported=true){p.paint(&api,nullptr,r,0,safe,active,119,supported);};
+    auto paint=[&](bool safe=true,bool active=true,bool supported=true){p.paint(&api,nullptr,r,0,safe,active,bound_hotkey,supported);};
     paint();check(!p.open() && !texts && !lines && !rects);
-    input.keys_pressed[119/8]|=1u<<(119%8);paint(false);check(!p.open()); auto reads=input_calls;paint(false);check(input_calls==reads);
+    // F8 must not open a new F6-default panel or acquire input focus.
+    input.keys_pressed[119/8]|=1u<<(119%8);paint();check(!p.open() && !focus_calls);input={};
+    input.keys_pressed[default_hotkey/8]|=1u<<(default_hotkey%8);paint(false);check(!p.open()); auto reads=input_calls;paint(false);check(input_calls==reads);
     paint(true,true,false);check(!p.open() && !focus_calls); // old cores: never touch v3
-    paint();check(p.open() && focused);input={};paint();check(lines<=2060 && texts>0);
+    paint();check(p.open() && focused);input={};paint();
+    check(lines<=2060 && texts>0 && std::strcmp(rendered_key_hint,"F6 / Esc  Close review")==0);
+    bound_hotkey=118;paint();check(std::strcmp(rendered_key_hint,"F7 / Esc  Close review")==0);
+    bound_hotkey=default_hotkey;
     // Another overlay takes focus: close without reclaiming it.
     focused=false;paint();check(!p.open() && !focused);
-    input.keys_pressed[119/8]|=1u<<(119%8);paint();check(p.open());input={};paint(true,false);check(!p.open() && !focused);
-    focus_result=SWOFTY_ASSET_LATE;input.keys_pressed[119/8]|=1u<<(119%8);paint();check(!p.open() && !focused);
+    input.keys_pressed[default_hotkey/8]|=1u<<(default_hotkey%8);paint();check(p.open());input={};paint(true,false);check(!p.open() && !focused);
+    focus_result=SWOFTY_ASSET_LATE;input.keys_pressed[default_hotkey/8]|=1u<<(default_hotkey%8);paint();check(!p.open() && !focused);
     focus_result=SWOFTY_ASSET_OK;paint();check(p.open());input={};input.keys_pressed[27/8]|=1u<<(27%8);paint();check(!p.open() && !focused);
-    // F8 must open and remain open despite held controls, drift and unrelated input.
+    // F6 must open and remain open despite held controls, drift and unrelated input.
     for(int kind=0;kind<6;++kind) {
-        input={};input.keys_pressed[119/8]|=1u<<(119%8);
+        input={};input.keys_pressed[default_hotkey/8]|=1u<<(default_hotkey%8);
         if(kind==0) input.keys_down[87/8]|=1u<<(87%8);
         if(kind==1) input.pad_buttons=SWOFTY_PAD_A;
         if(kind==2) input.pad_rt=.8f;
@@ -44,11 +52,11 @@ int main() {
         if(kind==4) {input.char_count=1;input.chars[0]='S';}
         if(kind==5) input.keys_pressed[13/8]|=1u<<(13%8);
         paint();check(p.open() && focused);
-        input.keys_pressed[119/8]=0;paint();check(p.open());
+        input.keys_pressed[default_hotkey/8]=0;paint();check(p.open());
         input={};input.keys_pressed[27/8]|=1u<<(27%8);paint();check(!p.open() && !focused);
     }
     // Losing the allowed context (e.g. resume on track) closes without an input read.
-    input={};input.keys_pressed[119/8]|=1u<<(119%8);paint();check(p.open());
+    input={};input.keys_pressed[default_hotkey/8]|=1u<<(default_hotkey%8);paint();check(p.open());
     auto before=input_calls;input={};paint(false);check(!p.open() && !focused && input_calls==before);
     // Full graphs, all twelve quality-labelled rows and cursor readout must
     // leave space within Swofty's 16,384-vertex budget (6 per glyph/quad/line).
@@ -64,7 +72,7 @@ int main() {
             fixture::pair(r,lap,float(d),frame++,time,false,float(d%100)/100,float((d+30)%100)/100);
         }
     }
-    input={};input.keys_pressed[119/8]|=1u<<(119%8);paint();check(p.open());
+    input={};input.keys_pressed[default_hotkey/8]|=1u<<(default_hotkey%8);paint();check(p.open());
     input={};input.x=580;input.y=215;input.pressed=SWOFTY_MOUSE_LEFT;paint(); // Y = first row
     input={};input.x=1000;input.y=300;lines=rects=glyphs=0;amber=cyan=false;paint();
     check(amber && cyan && 6*(lines+rects+glyphs)<16384);
@@ -89,8 +97,8 @@ int main() {
     multi_fixture::pair_grid(*grid,4,.04f,1,998);
     multi_fixture::pair_grid(*grid,5,.05f,2,0);
     Panel cross;
-    auto draw_grid=[&]{cross.paint(&api,nullptr,*grid,.05,true,true,119,true);};
-    input={};input.keys_pressed[119/8]|=1u<<(119%8);draw_grid();check(cross.open());
+    auto draw_grid=[&]{cross.paint(&api,nullptr,*grid,.05,true,true,bound_hotkey,true);};
+    input={};input.keys_pressed[default_hotkey/8]|=1u<<(default_hotkey%8);draw_grid();check(cross.open());
     input={};input.x=380;input.y=130;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid(); // open Y dropdown
     input={};input.x=380;input.y=260;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid(); // choose car 2
     input={};input.x=580;input.y=215;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid(); // Y lap 1
@@ -111,7 +119,7 @@ int main() {
     auto rewind=fixture::pedals(7,.001f);grid->accept(rewind,.07);draw_grid();
     check(!cross.open() && grid->driver(1).size()==0);
     grid->reset();grid->accept(fixture::session(),0);grid->accept(multi_fixture::participants(1,.01f,22),.01);
-    input={};input.keys_pressed[119/8]|=1u<<(119%8);draw_grid();check(cross.open());
+    input={};input.keys_pressed[default_hotkey/8]|=1u<<(default_hotkey%8);draw_grid();check(cross.open());
     input={};input.x=380;input.y=130;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();
     for(int n=0;n<2;++n) {input={};input.x=530;input.y=175;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();}
     input={};lines=rects=glyphs=0;draw_grid();check(last_driver_visible && 6*(lines+rects+glyphs)<16384);

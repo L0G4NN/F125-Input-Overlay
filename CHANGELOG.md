@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Hotkey coexistence
+
+- Default lap review shortcut changes from F8 to F6 to avoid competing addon bindings; user-configured F6–F12 choices are preserved.
+- Review panel footer now shows the configured shortcut dynamically, with negative F8 and rebinding regression coverage.
+- Existing Swofty installations may retain their saved F8 setting; change it in addon options if required.
+
 ## Unreleased — multi-driver lap review
 
 - Restyle F8 with charcoal/slate surfaces, outlined controls, cyan/amber driver and lap accents, selected-tab underlines, lap-time summaries and labelled graph scales. Keep separate/shared views and all interaction behaviour.

@@ -283,7 +283,9 @@ public:
         }
         text(20,850,"Garage or paused session",Theme::muted);
         text(20,878,"Controllers/wheels still reach the game.",Theme::muted);
-        text(20,910,"F8 / Esc  Close review",Theme::foreground);
+        char shortcut[48];
+        std::snprintf(shortcut,sizeof shortcut,"F%d / Esc  Close review",hotkey-0x6f);
+        text(20,910,shortcut,Theme::foreground);
         char capacity[96];
         std::snprintf(capacity,sizeof capacity,"%u detailed laps per driver; later laps: timing only.",
                       r.detailed_lap_capacity());

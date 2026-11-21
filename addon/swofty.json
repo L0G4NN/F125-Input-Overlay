@@ -4,7 +4,7 @@
   "name": "F1 25 Input Overlay",
   "version": "0.4.0-preview.2",
   "author": "L0G4NN",
-  "description": "Live pedal traces and F8 session lap comparison. UDP 2025 to 127.0.0.1:20777. Experimental.",
+  "description": "Live pedal traces and F6 session lap comparison. UDP 2025 to 127.0.0.1:20777. Experimental.",
   "kind": [
     "native"
   ],
@@ -116,8 +116,8 @@
     {
       "id": "review_key",
       "type": "slider",
-      "label": "Lap review key (F6 to F12; default F8)",
-      "default": 8,
+      "label": "Lap review key (F6 to F12; default F6)",
+      "default": 6,
       "min": 6,
       "max": 12,
       "step": 1,

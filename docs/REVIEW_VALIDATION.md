@@ -25,7 +25,7 @@ Leak detection is disabled because this host is run under ptrace. ASan/UBSan rem
 
 - Trace, existing UDP validation/ordering, receive recovery and layout regressions.
 - Portable lap store: completion once, last-lap timing association, extrema/spike preservation, reversed packet arrival, missing exact-frame pairs, stale garage status, rewind generations, malformed metadata and 200-lap trace/metadata limits. Record off/on, final classification with unknown last-lap time and session replacement are covered.
-- Fake overlay: no drawing while closed, no input polling while unsafe, v3 feature gate, F8, focus failure/steal, Alt-Tab state loss and Escape release. Rendering uses a fixed number of columns and no whole-session scan.
+- Fake overlay: no drawing while closed, no input polling while unsafe, v3 feature gate, F6, focus failure/steal, Alt-Tab state loss and Escape release. Rendering uses a fixed number of columns and no whole-session scan.
 - 300,000 deterministic mutated packet/state cases with session/lap/pedal/classification packets, arbitrary lengths, reset/record toggles, and plot bounds under ASan/UBSan/float-cast checks. This is randomized fuzzing, not coverage-guided libFuzzer.
 - Windows DLL compilation with warnings as errors; manifest and archive structure validation. Exports and system DLL imports should be inspected for each supplied build.
 
@@ -58,11 +58,11 @@ For the previous 0.2.0 renderer, an additional development-only profile fed 128 
 
 ## Still required on a gaming PC
 
-Record exact game, launcher/core and hardware versions. Verify metadata field behaviour and exact overall-frame pairing from real packets, lap transitions/last-lap times in qualifying and full races, garage/pause checks, F8/rebinding, coexistence and controller/wheel limitations. Compare disabled, recording-with-menu-closed and open-X/Y scenes using CPU/GPU frame-time distributions and 30-minute memory high-water observations. Do not advertise zero performance impact or full runtime compatibility from these local results.
+Record exact game, launcher/core and hardware versions. Verify metadata field behaviour and exact overall-frame pairing from real packets, lap transitions/last-lap times in qualifying and full races, garage/pause checks, F6/rebinding, coexistence and controller/wheel limitations. Compare disabled, recording-with-menu-closed and open-X/Y scenes using CPU/GPU frame-time distributions and 30-minute memory high-water observations. Do not advertise zero performance impact or full runtime compatibility from these local results.
 
 ## 0.2.2 follow-up checks
 
-ASan/UBSan regression tests and 300,000 mutated review packet/state cases pass. New cases cover connected sparse samples, explicit and subpixel gaps, zoom boundaries, held controls on the F8 frame, pause closing without further input reads, and both comparison layouts with twelve quality-labelled rows plus the cursor readout within the 16,384-vertex budget. Zig 0.14.1 Windows compilation and packaging pass.
+ASan/UBSan regression tests and 300,000 mutated review packet/state cases pass. New cases cover connected sparse samples, explicit and subpixel gaps, zoom boundaries, held controls on the F6 frame, pause closing without further input reads, and both comparison layouts with twelve quality-labelled rows plus the cursor readout within the 16,384-vertex budget. Zig 0.14.1 Windows compilation and packaging pass.
 
 The pool is unchanged. Allocation-count tests again observed zero new C++ allocations during ingestion and plot rebuilds at 0/78/128/200 completed laps. The updated portable upstream draw-list profile with 128 full laps and X/Y selected used 12,552 vertices in one batch and averaged 49.1 microseconds per cached paint on this host. These are synthetic CPU observations, excluding GPU, Windows input and socket scheduling. Actual F1 25 readability and the reported flashback/stuck-throttle fault remain unverified. No claim that the input-capture mitigation fixes a core/game input problem is made.
 
@@ -76,7 +76,7 @@ A development-only 128-lap profile using the pinned upstream portable draw-list 
 
 ## Paused review and rewind rollback (current)
 
-This supersedes earlier garage-only and whole-session rewind-reset policies. F8 is allowed in an unpaused fresh garage or a pause entered with fresh lap metadata; that context is latched because paused UDP can stop. Resume on track releases focus. Held controls and non-review navigation still release/refuse focus. Pause masks do not identify replay/flashback reliably: close F8 before flashback controls; the previous stuck-input report remains an in-game validation risk.
+This supersedes earlier garage-only and whole-session rewind-reset policies. F6 is allowed in an unpaused fresh garage or a pause entered with fresh lap metadata; that context is latched because paused UDP can stop. Resume on track releases focus. Held controls and non-review navigation still release/refuse focus. Pause masks do not identify replay/flashback reliably: close F6 before flashback controls; the previous stuck-input report remains an in-game validation risk.
 
 A newer overall frame with backwards source time or lap number starts rollback. Recording waits for validated lap metadata, drops pending pairs and rejects older frames. Completed laps before the target survive; the target lap reopens with its retained prefix, and later laps are removed. Discard the entire boundary bin and suffix (2 m pedals, 16 m extended channels), not just extrema, to avoid mixing attempts. Missing target history starts partial. Rewritten laps are conservatively partial and retain conservative quality flags. Selections/cache generation resets. No allocation: rollback scans at most 1,024 lap records plus one pedal slot and 14 extended channel suffixes; normal recording cost and fixed pool size are unchanged.
 
