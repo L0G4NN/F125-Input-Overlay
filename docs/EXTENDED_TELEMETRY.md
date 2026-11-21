@@ -1,6 +1,6 @@
 # Extended telemetry review (0.3.0)
 
-F8 retains the unpaused, fresh-garage-only input gate from 0.2.2. Choose X/Y laps and a page; the selection, zoom and distance range stay shared. Only the visible page builds/draws graphs. The default view has separate X/Y lanes; the View button switches to shared axes.
+Lap review retains the unpaused, fresh-garage-only input gate from 0.2.2. Choose X/Y laps and a page; the selection, zoom and distance range stay shared. Only the visible page builds/draws graphs. The default view has separate X/Y lanes; the View button switches to shared axes.
 
 | Page | Upper graph | Lower graph |
 | --- | --- | --- |
