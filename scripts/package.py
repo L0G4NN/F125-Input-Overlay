@@ -35,6 +35,7 @@ files = {
     'swofty.json': root / 'addon/swofty.json',
     'native/input_overlay.dll': dll,
     'INSTALL.md': root / 'docs/INSTALL.md',
+    'MULTI_DRIVER_REVIEW.md': root / 'docs/MULTI_DRIVER_REVIEW.md',
     'LICENSE': root / 'LICENSE',
     'THIRD_PARTY_LICENSES/Swofty-MIT.txt': root / 'third_party/swofty/LICENSE',
     'BUILD-INFO.txt': root / 'build/BUILD-INFO.txt',

@@ -1,6 +1,6 @@
 # Extended telemetry review (0.3.0)
 
-Lap review retains the unpaused, fresh-garage-only input gate from 0.2.2. Choose X/Y laps and a page; the selection, zoom and distance range stay shared. Only the visible page builds/draws graphs. The default view has separate X/Y lanes; the View button switches to shared axes.
+F6 retains the unpaused, fresh-garage-only input gate from 0.2.2. Choose X/Y laps and a page; the selection, zoom and distance range stay shared. Only the visible page builds/draws graphs. The default view has separate X/Y lanes; the View button switches to shared axes.
 
 | Page | Upper graph | Lower graph |
 | --- | --- | --- |
@@ -46,3 +46,14 @@ Exact lengths, format/version/player/splitscreen, finite values, defensive magni
 `bash scripts/test.sh` includes extended decoding, truncation, signed gear, nonzero-player stride, independent packet order, exact-frame pairing, stale steering, missing status, invalid sector, poisoning and storage checks. Panel tests populate every channel and exercise all pages with X/Y, sector lines and cursor, checking the geometry budget. The deterministic fuzzer includes Status and Motion Ex and all extra plot channel pairs; the benchmark feeds all four data packet types at 0/78/128/200 completed laps.
 
 These are synthetic checks. Windows cross-compilation is not evidence that fields are available in every session or that game input/performance is unaffected. On a gaming PC check S2/S3 against track timing lines, speed/gear against the HUD, ERS power versus cumulative deployment, each selected wheel, raw height/angle values, signed steering centre/full lock, UDP loss, flashback, full races and disabled/enabled frame-time comparisons.
+
+## Paused review and rewind rollback (current)
+
+This supersedes earlier garage-only and whole-session rewind-reset policies. F6 is allowed in an unpaused fresh garage or a pause entered with fresh lap metadata; that context is latched because paused UDP can stop. Resume on track releases focus. Held controls and non-review navigation still release/refuse focus. Pause masks do not identify replay/flashback reliably: close F6 before flashback controls; the previous stuck-input report remains an in-game validation risk.
+
+A newer overall frame with backwards source time or lap number starts rollback. Recording waits for validated lap metadata, drops pending pairs and rejects older frames. Completed laps before the target survive; the target lap reopens with its retained prefix, and later laps are removed. Discard the entire boundary bin and suffix (2 m pedals, 16 m extended channels), not just extrema, to avoid mixing attempts. Missing target history starts partial. Rewritten laps are conservatively partial and retain conservative quality flags. Selections/cache generation resets. No allocation: rollback scans at most 1,024 lap records plus one pedal slot and 14 extended channel suffixes; normal recording cost and fixed pool size are unchanged.
+
+
+## Multi-driver review (current)
+
+[Multi-driver review](MULTI_DRIVER_REVIEW.md) supersedes the player-only recording and trace-count descriptions above. X/Y select independent drivers and completed laps. Each car has up to 70 detailed completed laps, one active trace and 1,024 timing entries. Track length determines the per-driver quota under the 256 MiB recorder budget. Local HUD and the PR #15 pause/focus gates still use only local-player state. Opponent slip/aero data and restricted ERS remain unavailable. See that document for controls, retention limits, packet offsets, rewind handling and validation evidence.

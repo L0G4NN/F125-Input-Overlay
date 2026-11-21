@@ -43,13 +43,35 @@ int main() {
     check(!r.bin(r.lap(1),50),"no invented pedal sample");
     // Rewind invalidates the generation and all comparison handles; delayed old stream rejected.
     auto gen=r.generation(); r.accept(meta(2,500,509,3),5.09);
-    check(r.size()==0 && r.generation()!=gen,"rewind reset");
+    check(r.size()==1 && r.generation()!=gen,"rewind retains earlier lap");
     r.accept(pedals(508,5.08f),5.1); r.accept(pedals(509,3),5.1);
-    check(r.size()==0,"delayed frame cannot restore laps");
+    check(r.size()==1,"delayed frame cannot restore laps");
     // Truncation and hostile fields do not change tracked identity or finalize laps.
     auto bad=session(510,3,1000,99); bad.resize(100); r.accept(bad,5.2);
     bad=meta(255,std::numeric_limits<float>::quiet_NaN(),511,3.1f); r.accept(bad,5.3);
-    bad=session(512,3.2f,65535,99); r.accept(bad,5.4); check(r.size()==0,"reject malformed metadata");
+    bad=session(512,3.2f,65535,99); r.accept(bad,5.4); check(r.size()==1,"reject malformed metadata");
+    // Rewind into a completed lap: keep its prefix and earlier laps, replace
+    // the boundary bin and all later data, even if pedals arrive before metadata.
+    {
+        Recorder t;check(t.initialize(),"rewind init");t.accept(session(),0);
+        pair(t,1,0,1,.01f);pair(t,1,998,2,.02f);
+        pair(t,2,0,3,.03f,false,.2f,0);pair(t,2,100,4,.04f,false,.3f,0);
+        t.accept(motion_extra(5,.05f,.9f),.05);pair(t,2,200,5,.05f,false,.9f,1);
+        pair(t,3,0,6,.06f);pair(t,3,500,7,.07f);
+        check(t.size()==2,"two complete before rewind");auto old=t.lap(1);
+        check(t.extra(old,4,12),"extended abandoned sample exists before rollback");
+        t.accept(pedals(8,.035f,.4f,0),.08); // rewind without distance yet
+        t.accept(meta(2,100,8,.035f),.08);
+        check(t.size()==1 && t.bin(t.lap(0),0),"earlier lap preserved");
+        check(t.bin(old,0) && !t.bin(old,50) && !t.bin(old,100),"prefix only; boundary discarded");
+        check(!t.extra(old,4,12),"extended future discarded");
+        pair(t,2,100,9,.045f,false,.4f,0);pair(t,2,200,10,.055f,false,.5f,0);
+        pair(t,3,0,11,.065f);
+        check(t.size()==2 && t.lap(1).partial,"rewritten lap finalized once");
+        auto b=t.bin(t.lap(1),100);check(b && b->throttle_max==.5f && b->brake_max==0,"old peak absent");
+        pair(t,2,0,12,.02f);check(t.size()==1,"second rewind removes completed suffix");
+        pair(t,3,0,13,.03f);check(t.size()==2,"slot reusable after second rewind");
+    }
     // Fill all 128 trace slots, then retain metadata without touching selected traces.
     r.reset(); r.accept(session(),0); std::uint32_t frame=1; float time=0;
     for(unsigned lap=1;lap<=201;++lap) { time+=.02f; pair(r,lap,0,frame++,time); }
@@ -64,6 +86,13 @@ int main() {
     auto final=header(8,1042,frame++,time+=.02f); final[29]=22;final[31]=203;final[35]=3;
     r.accept(final,time);check(r.size()==202 && r.lap(201).number==203 && r.lap(201).time_ms==0,"final lap with unknown time");
     r.accept(final,time);check(r.size()==202,"no duplicate classification");
+    auto oldest=r.lap(0);
+    pair(r,128,0,frame++,1.f);
+    check(r.size()==127 && r.bin(oldest,0),"cap rollback retains older slots");
+    pair(r,128,100,frame++,1.02f,false,.25f,0);
+    pair(r,129,0,frame++,1.04f);
+    check(r.size()==128 && !r.lap(127).limited,"reclaimed detailed slot");
+    auto rebuilt=r.bin(r.lap(127),50);check(rebuilt && rebuilt->throttle_max==.25f,"reclaimed slot fresh values");
     // A changed session clears selections/data; an old retired session cannot take over.
     auto oldsession=session(1,0);r.accept(session(frame++,time,1000,99),time);
     check(r.size()==0,"new session resets");r.accept(oldsession,time+.01);check(r.size()==0,"retired source ignored");

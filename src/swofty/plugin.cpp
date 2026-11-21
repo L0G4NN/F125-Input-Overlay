@@ -19,7 +19,7 @@ std::atomic<int> history{5}, width{420}, height{160}, opacity{25}, anchor{0}, ho
 SOCKET sock=INVALID_SOCKET;
 input_trace::Feed feed;
 input_trace::ReceiveGate receive_gate;
-input_trace::review::Recorder recorder;
+input_trace::review::MultiRecorder recorder;
 input_trace::review::Panel review_panel;
 bool review_supported{};
 using PauseQuery=std::uint32_t (*)();
@@ -115,9 +115,16 @@ void paint(SwoftyPaint* p,void*) {
     review_panel.paint(api,p,recorder,now,review_safe,
                        foreground_pid==GetCurrentProcessId(),VK_F1+review_key.load()-1,review_supported);
     if(review_panel.open()) return;
-    if(!input_trace::show_live_hud(hide_in_menus.load(),is_paused,recorder.on_track(now))) return;
     const auto panel=input_trace::layout(sw,sh,width.load(),height.load(),anchor.load(),horizontal.load(),vertical.load());
     const float x=panel.x,y=panel.y,w=panel.w,h=panel.h,scale=panel.scale;
+    // Missing telemetry is a text-only state, never an empty or stale graph.
+    if(socket_error || feed.trace.state()!=input_trace::State::live) {
+        if(input_trace::show_waiting_hud(is_paused,recorder.garage(now)))
+            ov->text(p,x+8*scale,y+6*scale,14*scale,0xffffffff,
+                     socket_error?"UDP port 20777 unavailable":"Waiting for UDP");
+        return;
+    }
+    if(!input_trace::show_live_hud(hide_in_menus.load(),is_paused,recorder.on_track(now))) return;
     ov->rect(p,x,y,w,h,std::uint32_t(opacity.load()*255/100));
     const float gx=x+36*scale, gy=y+48*scale, gw=w-100*scale, gh=h-68*scale;
     for(int i=0;i<3;++i) {
@@ -164,13 +171,17 @@ void register_overlay(double,void*) {
         if(registered) api->log("[input-overlay] overlay registered");
     }
 }
+void* allocate_review_pages(std::size_t bytes) {
+    return VirtualAlloc(nullptr,bytes,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
+}
+void release_review_pages(void* pages) { VirtualFree(pages,0,MEM_RELEASE); }
 void start() {
     HMODULE core=GetModuleHandleW(L"swofty_core.dll");
     using VersionQuery=std::uint32_t (*)();
     auto version=core?std::bit_cast<VersionQuery>(GetProcAddress(core,"SwoftyCoreOverlayVersion")):nullptr;
     pause_query=core?std::bit_cast<PauseQuery>(GetProcAddress(core,"SwoftyCorePauseReasons")):nullptr;
     review_supported=version && version()>=3;
-    if(review_supported && !recorder.initialize()) { review_supported=false; api->log("[input-overlay] review pool allocation failed; live overlay remains enabled"); }
+    if(review_supported && !recorder.initialize(allocate_review_pages,release_review_pages)) { review_supported=false; api->log("[input-overlay] review pool allocation failed; live overlay remains enabled"); }
     if(!review_supported) api->log("[input-overlay] lap review needs overlay input v3; live overlay remains enabled");
     const char* names[]={"enabled","bars","history","width","height","opacity","anchor","horizontal","vertical","recording","review_key","hide_in_menus"};
     for(auto id:names) {

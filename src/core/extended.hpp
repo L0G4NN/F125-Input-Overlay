@@ -1,17 +1,17 @@
 #pragma once
 #include "udp.hpp"
-#include <memory>
-#include <new>
+#include <algorithm>
 namespace input_trace::review {
 constexpr unsigned extra_channels=14, extra_bins=1024;
-struct ExtraBin { float lo{},hi{}; std::uint32_t stamp{},link{}; };
+struct ExtraBin { float lo,hi; std::uint32_t stamp,link; };
 struct ExtraPacket { Pedals h{}; float values[extra_channels]{}; unsigned mask{},group{}; float steering{}; bool steering_valid{}; };
 // EA 2025 v3 packed offsets. No casts to potentially unaligned structures.
-inline bool decode_extra(std::span<const unsigned char> p,ExtraPacket& out) {
-    if(p.size()<29) return false;
+inline bool decode_extra(std::span<const unsigned char> p,ExtraPacket& out,unsigned car=22) {
+    if(p.size()<29 || car>22) return false;
     out={};
     if(p[6]==6) {
         if(!decode_common(p,out.h,6,1352)) return false;
+        if(car<22) out.h.player=car;
         auto c=p.data()+29+60*out.h.player;
         out.values[0]=float(unsigned(c[0])|unsigned(c[1])<<8);
         out.values[1]=float(std::bit_cast<std::int8_t>(c[15]));
@@ -19,6 +19,7 @@ inline bool decode_extra(std::span<const unsigned char> p,ExtraPacket& out) {
         out.mask=3;out.group=0;
     } else if(p[6]==7) {
         if(!decode_common(p,out.h,7,1239)) return false;
+        if(car<22) out.h.player=car;
         auto c=p.data()+29+55*out.h.player;
         out.values[2]=f32(c+33)/1000.f; // MGU-K power W -> kW
         out.values[3]=f32(c+50)/1000000.f; // cumulative deployed energy J -> MJ
@@ -26,7 +27,7 @@ inline bool decode_extra(std::span<const unsigned char> p,ExtraPacket& out) {
            !std::isfinite(out.values[3]) || out.values[3]<0 || out.values[3]>100) return false;
         out.mask=12;out.group=1;
     } else if(p[6]==13) {
-        if(!decode_common(p,out.h,13,273)) return false;
+        if(!decode_common(p,out.h,13,273) || (car<22 && car!=out.h.player)) return false;
         for(unsigned i=0;i<4;++i) {
             out.values[4+i]=f32(p.data()+93+4*i); // signed slip ratio
             out.values[8+i]=f32(p.data()+109+4*i);
@@ -42,16 +43,23 @@ inline bool decode_extra(std::span<const unsigned char> p,ExtraPacket& out) {
     return true;
 }
 // Extra channels use 16 m extrema bins; the existing pedals retain 2 m bins.
-// Single owner, fixed startup allocation, no work proportional to completed laps.
 class ExtraStore {
-    struct Pool { ExtraBin bins[129][extra_channels][extra_bins]{}; };
     struct Meta { unsigned slot{},stamp{}; float distance{},length{}; double time{},wall{}; bool valid{}; };
     struct Pending { std::uint32_t frame{}; bool used{}; Meta meta{}; ExtraPacket packets[3]{}; double wall[3]{}; bool have[3]{},done[3]{}; };
     struct Previous { unsigned stamp{},slot{},bin{}; double time{}; float distance{}; bool valid{}; };
 public:
-    bool initialize() { if(!pool_) pool_.reset(new(std::nothrow) Pool);return bool(pool_); }
-    static constexpr std::size_t storage_bytes() { return sizeof(Pool); }
+    void attach(ExtraBin* bins,unsigned slots,unsigned channels,unsigned distance_bins) {
+        bins_=bins;slots_=slots;channels_=channels;distance_bins_=distance_bins;
+    }
     void gap() { pending_={}; previous_={}; steering_valid_=false; }
+    void truncate(unsigned slot,unsigned stamp,float distance) {
+        gap();
+        if(!bins_ || slot>=slots_) return;
+        const auto first=unsigned(std::clamp(distance/16.f,0.f,float(distance_bins_)));
+        for(unsigned c=0;c<channels_;++c)
+            for(unsigned i=first;i<distance_bins_;++i)
+                if(at(slot,c,i).stamp==stamp) at(slot,c,i)={};
+    }
     // Completed laps are immutable so the cached review cannot miss late writes.
     void seal(unsigned stamp) {
         for(auto& q:pending_) if(q.meta.valid && q.meta.stamp<=stamp) q={};
@@ -69,33 +77,37 @@ public:
         degrees=steering_;return true;
     }
     const ExtraBin* bin(unsigned slot,unsigned stamp,unsigned channel,unsigned index) const {
-        if(!pool_ || slot>=129 || channel>=extra_channels || index>=extra_bins) return nullptr;
-        auto& b=pool_->bins[slot][channel][index];return b.stamp==stamp && !(b.link&1)?&b:nullptr;
+        if(!bins_ || slot>=slots_ || channel>=channels_ || index>=distance_bins_) return nullptr;
+        auto& b=at(slot,channel,index);return b.stamp==stamp && !(b.link&1)?&b:nullptr;
     }
 private:
+    ExtraBin& at(unsigned slot,unsigned channel,unsigned index) const {
+        return bins_[(std::size_t(slot)*channels_+channel)*distance_bins_+index];
+    }
     Pending& pending(std::uint32_t frame) { auto& q=pending_[frame%8];if(!q.used || q.frame!=frame) {q={};q.frame=frame;q.used=true;}return q; }
     void flush(Pending& q) {
         const auto m=q.meta;
-        if(!pool_ || !m.valid || m.slot>=128 || m.distance<0 || m.distance>=m.length || m.distance>=16384) return;
+        if(!bins_ || !m.valid || m.slot>=slots_ || m.distance<0 || m.distance>=m.length || m.distance>=16384) return;
         for(unsigned g=0;g<3;++g) {
             if(!q.have[g] || q.done[g]) continue;
             q.done[g]=true;const auto& p=q.packets[g];
             if(std::abs(p.h.time-m.time)>.1 || std::abs(q.wall[g]-m.wall)>.1) continue;
             const unsigned index=unsigned(m.distance/16);
-            for(unsigned c=0;c<extra_channels;++c) if(p.mask&(1u<<c)) {
+            for(unsigned c=0;c<channels_;++c) if(p.mask&(1u<<c)) {
                 auto& prev=previous_[c];
                 // Late metadata/packets must not overwrite newer samples or an older completed lap.
                 if(prev.valid && (m.stamp<prev.stamp || (m.stamp==prev.stamp && m.time<=prev.time))) continue;
                 bool linked=prev.valid && prev.slot==m.slot && prev.stamp==m.stamp &&
                     m.time-prev.time<=.1 && m.distance>=prev.distance && m.distance-prev.distance<=100;
-                auto& b=pool_->bins[m.slot][c][index];
+                auto& b=at(m.slot,c,index);
                 if(b.stamp!=m.stamp) b={p.values[c],p.values[c],m.stamp,linked && prev.bin<index?(prev.bin+1)<<1:0};
                 else { if(!linked) b.link|=1;b.lo=std::min(b.lo,p.values[c]);b.hi=std::max(b.hi,p.values[c]); }
                 prev={m.stamp,m.slot,index,m.time,m.distance,true};
             }
         }
     }
-    std::unique_ptr<Pool> pool_;
+    ExtraBin* bins_{};
+    unsigned slots_{},channels_{},distance_bins_{};
     std::array<Pending,8> pending_{};
     std::array<Previous,extra_channels> previous_{};
     double steering_wall_{};float steering_{};bool steering_valid_{};

@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased — Hotkey coexistence
+
+- Default lap review shortcut changes from F8 to F6 to avoid competing addon bindings; user-configured F6–F12 choices are preserved.
+- Review panel footer now shows the configured shortcut dynamically, with negative F8 and rebinding regression coverage.
+- Existing Swofty installations may retain their saved F8 setting; change it in addon options if required.
+
+## Unreleased — multi-driver lap review
+
+- Restyle F8 with charcoal/slate surfaces, outlined controls, cyan/amber driver and lap accents, selected-tab underlines, lap-time summaries and labelled graph scales. Keep separate/shared views and all interaction behaviour.
+
+- Replace X/Y driver cycling with paged dropdown lists; preserve independent selections and prevent clicks/scrolls reaching controls underneath.
+
+- Remove paused F8 telemetry-freshness/latch and held-input/navigation blockers; retain explicit close, resume-on-track and focus/window-loss cleanup.
+
+- Independent X/Y driver and completed-lap selection, retaining all five pages and distance controls.
+- Size lap storage to the validated track length. Retain up to 70 completed detailed laps plus an active lap for each of 22 drivers within a 256 MiB recorder budget. F8 shows the equal per-driver quota on long layouts. Later laps retain timing.
+- Player-only motion channels and restricted opponent ERS are unavailable rather than fabricated zero traces. Local HUD and PR #15 focus gates remain tied to the player.
+- Participants decoder, 22-car/200-lap regressions, cross-driver panel tests, deterministic mutation test and allocation benchmark. Real-game validation remains pending.
+
+
+## Unreleased
+
+- Restore F8 during pauses entered from a live session, keeping held-control checks.
+- Roll back only abandoned lap data after rewinds, preserving earlier laps and prefix samples across all channels.
+
+- Show a text-only Waiting for UDP status before telemetry arrives; do not draw an empty or stale graph.
+
+- Remove the extra pixel below F8 extrema markers to avoid protruding trace edges without changing recorded values or geometry budgets.
+- Add Bahrain F8 and live overlay previews to the README.
+
 ## 0.3.0 — Extended telemetry graphs
 
 - Add dashed S2/S3 markers from validated session distances on every review page.
@@ -32,7 +62,12 @@
 - Keep closed-menu graph work and driving-state review input polling off; add lifecycle/focus/fuzz/benchmark checks and documented runtime limitations.
 - Windows compilation and synthetic checks only; in-game operation and performance remain unverified.
 
-## Unreleased — packet validation hardening
+## Unreleased
+
+- Restore F8 during pauses entered from a live session, keeping held-control checks.
+- Roll back only abandoned lap data after rewinds, preserving earlier laps and prefix samples across all channels.
+
+- Show a text-only Waiting for UDP status before telemetry arrives; do not draw an empty or stale graph. — packet validation hardening
 
 - Reject invalid pedals before session/frame tracking changes; preserve gap indication only for newer packets from the established player.
 - Decode each header and pedal pair once, with no new allocations or history storage.
@@ -59,6 +94,11 @@
 - Compiled and inspected; real Swofty import and game testing remain pending.
 
 ## Unreleased
+
+- Restore F8 during pauses entered from a live session, keeping held-control checks.
+- Roll back only abandoned lap data after rewinds, preserving earlier laps and prefix samples across all channels.
+
+- Show a text-only Waiting for UDP status before telemetry arrives; do not draw an empty or stale graph.
 
 ### Added
 
