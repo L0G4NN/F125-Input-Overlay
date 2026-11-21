@@ -45,7 +45,7 @@ Open **ADDON SETTINGS → F1 25 Input Overlay**. Settings use your Swofty profil
 | Corner | 0 bottom-left, 1 bottom-right, 2 top-left, 3 top-right; default 0. |
 | Horizontal / Vertical position | Move inward from the selected corner: 0% at that edge, 50% centred, 100% at the opposite edge. |
 | Record session laps in memory | On by default. Turning it off preserves completed laps but discards the partial active lap. |
-| Lap review key | F6–F12; default F8. Avoid bindings used by the game or other addons. |
+| Lap review key | F6–F12; default F6. Existing profiles may retain F8 until changed in settings. Avoid bindings used by the game or other addons. |
 | Hide live HUD in garage and menus | On by default. Turn off temporarily to see HUD status messages when diagnosing telemetry. |
 
 The full live panel stays inside the screen. Mouse dragging to reposition it is not implemented.
@@ -54,7 +54,7 @@ The full live panel stays inside the screen. Mouse dragging to reposition it is 
 
 1. Keep the master toggle and **Record session laps in memory** on. Enable UDP before driving the laps you want to review.
 2. Complete laps and return to the garage. Keep the game **unpaused**; the addon needs fresh garage telemetry.
-3. Keep the game window active, release held keyboard/controller controls, and press **F8** or your configured review key.
+3. Keep the game window active, release held keyboard/controller controls, and press **F6** or your configured review key.
 4. Select **X** and **Y** beside completed laps. X is cyan and Y is amber. Each pedal has separate X/Y lanes by default; **View** switches to shared-axis overlay comparisons.
 
 | Control | Action |
@@ -86,10 +86,10 @@ Review focus does not block controllers or wheels, and DirectInput wheels may no
 | Problem | What to check |
 | --- | --- |
 | No panel while driving | Check the addon is enabled in the profile used to launch the game, the master toggle is on and the experimental overlay feature is permitted. Check all UDP settings above. Restart after changing enabled addons. |
-| No panel in garage/menus | Expected with **Hide live HUD in garage and menus** on. Leave the garage for the live graph; use F8 for garage review. |
+| No panel in garage/menus | Expected with **Hide live HUD in garage and menus** on. Leave the garage for the live graph; use F6 (or your configured key) for garage review. |
 | Waiting for UDP 2025 | Check address, port, format and UDP Telemetry above. There is no native-input fallback. Temporarily turn off **Hide live HUD in garage and menus** to see status messages. |
 | UDP port 20777 unavailable | Close other apps listening on that port and restart F1 25. The port cannot be changed in this version. |
-| F8 does nothing | Be in the garage, unpaused, with fresh UDP and the game in the foreground. Release held controls. Check recording, the master toggle and configured key. Older cores without overlay input v3 cannot open review. |
+| F6 does nothing | Be in the garage, unpaused, with fresh UDP and the game in the foreground. Release held controls. Check recording, the master toggle and configured key. Older cores without overlay input v3 cannot open review. |
 | No completed laps | Enable recording and UDP before driving, then complete a lap. Session resets and flashbacks clear prior recordings. |
 | Frozen trace or gaps | Pause events freeze the trace. Missing data is unavailable, not zero. Queued packets are discarded after interruptions, which can briefly show waiting. |
 | History disappears after flashback/restart | Expected: history clears on session changes and detected rewinds. |
