@@ -184,7 +184,10 @@ public:
                 text(gx,850+which*28.f,info);
             }
         }
-        text(20,810,"F8 / Escape to close. Garage only.");
+        // Win32 VK_F1 is 0x70; display the active binding, not a fixed F8 hint.
+        char key_hint[72];
+        std::snprintf(key_hint,sizeof key_hint,"F%d / Escape to close. Garage only.",hotkey-0x6f);
+        text(20,810,key_hint);
         text(20,842,"Controllers/wheels still reach the game.");
         text(20,874,r.metadata_limit()?"Lap metadata limit reached.":"After 128 traces, later laps retain timing only.");
         (void)now;
