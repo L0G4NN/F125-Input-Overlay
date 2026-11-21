@@ -4,7 +4,7 @@ Status: experimental 0.2.0 implementation in dev. Portable/synthetic checks and 
 
 ## Intended behaviour
 
-Press F8 to toggle a custom telemetry review panel. After a qualifying lap, return to the garage, open it, select Lap X and optionally put Lap Y over it. The list shows completed laps recorded during the current session, lap time, validity and recording quality. Changing selection overlays the two laps on the same distance axis. This is a standalone Swofty overlay, not an insertion into Race Director or the setup screen.
+Press F6 (or the configured key) to toggle a custom telemetry review panel. After a qualifying lap, return to the garage, open it, select Lap X and optionally put Lap Y over it. The list shows completed laps recorded during the current session, lap time, validity and recording quality. Changing selection overlays the two laps on the same distance axis. This is a standalone Swofty overlay, not an insertion into Race Director or the setup screen.
 
 The existing scrolling live trace remains available independently. Closing the panel stops review rendering and input capture; bounded session recording continues while enabled. Opening or closing does not change the game's pause state, car controls, setup or saves. No disk recording, export, network upload or automatic sharing is included.
 
@@ -12,7 +12,7 @@ The existing scrolling live trace remains available independently. Closing the p
 
 | Control | Behaviour |
 | --- | --- |
-| F8, default configurable key | Toggle once per key-down edge; holding must not repeatedly toggle |
+| F6, default configurable key | Toggle once per key-down edge; holding must not repeatedly toggle |
 | Escape / Close | Close and release focus; do not consume Escape while closed |
 | Lap X selector | Primary lap; cyan in both labelled pedal graphs |
 | Lap Y selector | Optional comparison lap; amber, with separate lanes by default and an overlay toggle |
@@ -96,8 +96,8 @@ For a missing or ambiguous bin, draw a gap. Valid samples separated by a discont
 - Complete, invalid, partial, out/in laps, unknown metadata and no-data cases have correct labels. Last-lap timing is associated with the lap that ended, not the new lap.
 - Test independent packet ordering, truncation, index bounds, non-finite distance/time/input, hostile session/frame changes, duplicate completion and packet loss. An invalid packet cannot mutate tracking or allocate based on claimed lap counts/track length.
 - Fuzz randomized packet/lap sequences with ASan/UBSan and assertions for bounds, coverage, ownership, selections and budget limits. Exercise every capacity and flashback boundary.
-- F8 toggles once, Escape closes, text entry does not open the panel, unsupported v3/focus/state leaves game input available. Test Alt-Tab, another overlay taking focus, resize, disable and return to driving. Explicitly verify controllers/wheels are not mistakenly assumed captured.
-- Record a qualifying lap, return to the garage, open F8, select X/Y, inspect braking, close, and restart the session. Verify no laps cross the session boundary.
+- The configured review key toggles once, Escape closes, text entry does not open the panel, unsupported v3/focus/state leaves game input available. Test Alt-Tab, another overlay taking focus, resize, disable and return to driving. Explicitly verify controllers/wheels are not mistakenly assumed captured.
+- Record a qualifying lap, return to the garage, open review, select X/Y, inspect braking, close, and restart the session. Verify no laps cross the session boundary.
 - Compare the same game scene with feature disabled, recording on/menu closed, and menu open with two maximum-size traces. Include 30/60 Hz telemetry and 60/144/240 FPS, low FPS, flood/budget recovery and 30-minute memory high-water checks.
 - Initial profiling target: closed-menu recording adds less than 0.1 ms CPU per render callback at normal 60 Hz telemetry; open review adds less than 0.5 ms CPU per presented frame, with no growing memory. These are engineering targets only; measure CPU and GPU frame-time distributions and revise design if missed. Never claim zero FPS impact from a synthetic CPU test.
 
@@ -105,7 +105,7 @@ For a missing or ambiguous bin, draw a gap. Valid samples separated by a discont
 
 - `src/core/lap_review.hpp`: render-owner store, startup-allocated 129-slot pool (128 finished plus active), 2 m min/max bins, stamp-based reuse without clearing/copying a full lap in paint, 1,024-entry metadata guard. Pool 25,362,432 bytes plus Recorder 34,360 bytes on this host; plot cache is fixed 24,576 bytes. No allocation after startup in the ingestion/plot paths.
 - UDP session (1), lap (2), pedals (6) and final classification (8) use the pinned EA 2025 v3 packed layouts. Per-stream frame ordering, full validation before tracking, exact-frame pairing in 8 bounded slots and <=100 ms source/receipt agreement. Metadata frames without a pedal partner never fabricate a sample. Spectating/network sessions and unknown/oversize tracks are not recorded.
-- `src/swofty/review_panel.hpp`: gated v3 input/focus, F8 default (F6–F12 setting), 12-row paginated lap list, X/Y selection, two min/max distance plots, cursor ranges, wheel zoom, drag pan and reset. Closed review performs no graph work; driving frames skip review input queries. No game pause or physics writes.
+- `src/swofty/review_panel.hpp`: gated v3 input/focus, F6 default (F6–F12 setting), 12-row paginated lap list, X/Y selection, two min/max distance plots, cursor ranges, wheel zoom, drag pan and reset. Closed review performs no graph work; driving frames skip review input queries. No game pause or physics writes.
 - `src/core/review_plot.hpp`: only selected laps are aggregated to 192 columns; caches rebuild on selection/view/count changes. At most 1,536 v1 trace line requests, not full-session rendering. Verified predecessor links connect sparse samples; true gaps stay disconnected. Overview shows upper envelopes and min/max markers, not a lossless raw trace.
 - Rewind policy is conservative: discard the whole recording generation and selections, retaining no abandoned attempt. Fine-grained rollback is deferred. Final classification may finalize the last active lap with unknown time. Session-history backfill and native menu injection are deferred.
 - New settings: recording toggle and function key number. Master disable stops both features; record-only disable retains completed laps. Unsupported overlay v3 or allocation failure leaves the existing live HUD operational. Input capture behaviour and session lifecycle still need real-game evidence.
@@ -113,10 +113,10 @@ For a missing or ambiguous bin, draw a gap. Valid samples separated by a discont
 
 ## 0.2.2 behaviour update
 
-Interactive F8 review is now **garage-only and unpaused**, superseding earlier paused-review descriptions. Any pause closes it, even with fresh garage metadata; held keyboard/controller controls prevent focus acquisition. Test entering flashback with throttle held/released, both with review closed and after leaving the garage review, on keyboard, controller and wheel. Compare addon-disabled and Swofty-core-only runs if the fault persists: the addon never writes throttle or injects controls, and no exact replay/flashback query is available in the pinned public API. This is an input-capture mitigation, not a confirmed game-level fix.
+Interactive lap review is now **garage-only and unpaused**, superseding earlier paused-review descriptions. Any pause closes it, even with fresh garage metadata; held keyboard/controller controls prevent focus acquisition. Test entering flashback with throttle held/released, both with review closed and after leaving the garage review, on keyboard, controller and wheel. Compare addon-disabled and Swofty-core-only runs if the fault persists: the addon never writes throttle or injects controls, and no exact replay/flashback query is available in the pinned public API. This is an input-capture mitigation, not a confirmed game-level fix.
 
 Lap rows use separate timing and quality lines. X (cyan) and Y (amber) use separate lanes by default; “View: overlay” puts them on shared pedal axes. Connected upper-envelope lines plus min/max markers replace isolated dots. A connection requires a recorded predecessor link, including sparse bins at racing speed; gaps remain disconnected and no smoothing is applied. Zoom to inspect detail. The bin pool remains 24.2 MiB; four 192-column caches and at most 1,536 trace-line calls bound open-menu work independently of lap count.
 
 ## Extended telemetry in 0.3.0
 
-See [EXTENDED_TELEMETRY.md](EXTENDED_TELEMETRY.md) for the implemented sector markers, five F8 pages, per-wheel selector, front-wheel steering readout, verified EA offsets and unit limitations. The new total fixed pool is 52.4 MiB, superseding earlier pedal-only 24.2 MiB totals. Pedals retain 2 m bins; extra channels use 16 m extrema bins. Rendering is four 176-column arrays for the selected page only. Existing garage-only/unpaused focus safeguards and socket bounds remain in force. Game validation remains pending.
+See [EXTENDED_TELEMETRY.md](EXTENDED_TELEMETRY.md) for the implemented sector markers, five review pages, per-wheel selector, front-wheel steering readout, verified EA offsets and unit limitations. The new total fixed pool is 52.4 MiB, superseding earlier pedal-only 24.2 MiB totals. Pedals retain 2 m bins; extra channels use 16 m extrema bins. Rendering is four 176-column arrays for the selected page only. Existing garage-only/unpaused focus safeguards and socket bounds remain in force. Game validation remains pending.
