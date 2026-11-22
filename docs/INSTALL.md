@@ -1,12 +1,12 @@
 # Installation and user guide
 
-F1 25 Input Overlay is an experimental Windows x64 addon for offline single-player F1 25. The current source version is 0.2.2. Actual Swofty import and in-game behaviour remain unverified.
+F1 25 Input Overlay is an experimental Windows x64 addon for offline single-player F1 25. The current source version is 0.5.0. Actual Swofty import and in-game behaviour remain unverified.
 
 ## Download and install
 
 1. Close F1 25.
 2. Use Swofty Launcher 1.3.7 or newer and permit its experimental overlay feature. Lap review additionally requires a Swofty core with overlay input v3.
-3. Check [Releases](https://github.com/L0G4NN/F125-Input-Overlay/releases) for a compiled `.swoftyaddon`. For version 0.2.2, the package name is `F125-Input-Overlay-0.2.2.swoftyaddon`. Use the version supplied with your chosen release. GitHub's **Source code** archives do not contain the compiled addon. If no compiled package is available, see [Development](DEVELOPMENT.md) to build one.
+3. Check [Releases](https://github.com/L0G4NN/F125-Input-Overlay/releases) for a compiled `.swoftyaddon`. For version 0.5.0, the package name is `F125-Input-Overlay-0.5.0.swoftyaddon`. Use the version supplied with your chosen release. GitHub's **Source code** archives do not contain the compiled addon. If no compiled package is available, see [Development](DEVELOPMENT.md) to build one.
 4. Import the `.swoftyaddon` from Swofty's **Addons** page or drag it onto the launcher window. Leave it archived.
 5. Enable **F1 25 Input Overlay** in your offline profile and launch the game through Swofty.
 
@@ -53,8 +53,8 @@ The full live panel stays inside the screen. Mouse dragging to reposition it is 
 ## Review and compare laps
 
 1. Keep the master toggle and **Record session laps in memory** on. Enable UDP before driving the laps you want to review.
-2. Complete laps, then **pause mid-session**, or return to the garage unpaused. Pause access latches fresh lap telemetry when the pause begins.
-3. Keep the game window active, release held keyboard/controller controls, and press **F6** or your configured review key.
+2. Complete laps, then **pause mid-session**, or return to the garage unpaused.
+3. Keep the game window active and press **F6** or your configured review key.
 4. Open the **X v** and **Y v** dropdowns to select drivers independently. Switch **Laps: X driver / Y driver** to browse either driver, then assign **X** or **Y** beside a completed lap. X is cyan and Y is amber. Each pedal has separate X/Y lanes by default; **View** switches to shared-axis overlay comparisons.
 
 | Control | Action |
@@ -69,7 +69,7 @@ Graphs use distance in metres. Cursor values show min/max inputs within a 2 m bi
 
 Lap labels include **INVALID**, **PARTIAL**, **OUT LAP**, **IN LAP** and **NO TRACE**. Partial or incomplete laps may not support a full comparison. **NO TRACE** means timing metadata is retained without detailed pedal data. A final lap can have an unknown time if no authoritative timing transition arrived.
 
-The live HUD hides while review is open. Review closes when resuming on track, Alt-Tab, session replacement, master disable or another addon taking focus. Typing, non-review keyboard input or gamepad navigation also closes it. Close review before naming a setup; if you begin typing with it open, you may need to retype the first character.
+The live HUD hides while review is open. Review closes when resuming on track, Alt-Tab, session replacement, master disable or another addon taking focus. Close review before naming a setup or operating flashback controls so the game receives keyboard and mouse input.
 
 Review focus does not block controllers or wheels, and DirectInput wheels may not appear in its controller snapshot. These restrictions mitigate input capture problems; the reported stuck-throttle behaviour still needs in-game verification. The addon does not write vehicle inputs. See [setup visibility notes](SETUP_NAMING.md) and [lap-review validation](LAP_REVIEW.md).
 
@@ -77,8 +77,8 @@ Review focus does not block controllers or wheels, and DirectInput wheels may no
 
 - Laps stay in memory only. There is no disk telemetry recording, export or upload.
 - Exiting the game or a session reset clears recordings. Rewinds clear X/Y selections, retain earlier laps and the affected lap prefix, and delete the abandoned suffix and later laps. The boundary bin is discarded; rewritten laps are marked partial.
-- Each of up to 22 drivers retains up to 70 detailed completed laps plus an active lap. The track length determines the space per trace and can reduce the quota equally for all drivers. F6 shows the session quota. Later laps retain timing and show **NO TRACE**, up to 1,024 metadata entries per driver.
-- The recorder reserves startup backing within a 256 MiB budget. The validated track length determines the storage used by each driver. See [multi-driver review](MULTI_DRIVER_REVIEW.md#memory-and-race-length) for examples.
+- Each of up to 22 drivers retains up to 78 detailed completed laps plus an active lap. The track length determines the space per trace and can reduce the quota equally for all drivers. F6 shows the session quota. Later laps retain timing and show **NO TRACE**, up to 1,024 metadata entries per driver.
+- The recorder reserves startup backing within a 192 MiB budget. The validated track length determines the storage used by each driver. See [multi-driver review](MULTI_DRIVER_REVIEW.md#memory-and-race-length) for examples.
 - Unknown track IDs and tracks longer than 16,384 m are not recorded.
 
 ## Troubleshooting
@@ -89,11 +89,11 @@ Review focus does not block controllers or wheels, and DirectInput wheels may no
 | No panel in garage/menus | Expected with **Hide live HUD in garage and menus** on. Leave the garage for the live graph; use F6 for garage review. |
 | Waiting for UDP 2025 | Check address, port, format and UDP Telemetry above. There is no native-input fallback. Temporarily turn off **Hide live HUD in garage and menus** to see status messages. |
 | UDP port 20777 unavailable | Close other apps listening on that port and restart F1 25. The port cannot be changed in this version. |
-| F6 does nothing | Pause from a session with fresh UDP, or be in the garage unpaused and the game in the foreground. Release held controls. Check recording, the master toggle and configured key. Older cores without overlay input v3 cannot open review. |
+| F6 does nothing | Pause the game or return to the garage with fresh UDP lap data. Keep the game window active. Check recording, the master toggle and configured key. Older cores without overlay input v3 cannot open review. |
 | No completed laps | Enable recording and UDP before driving, then complete a lap. Session resets clear recordings; rewinds remove only the superseded section. |
 | Frozen trace or gaps | Pause events freeze the trace. Missing data is unavailable, not zero. Queued packets are discarded after interruptions, which can briefly show waiting. |
 | History disappears after flashback/restart | Session changes clear history; rewinds remove the affected suffix and later laps. |
-| Review closes unexpectedly | Pausing, leaving the garage, changing focus or using non-review controls releases review focus. |
+| Review closes unexpectedly | Resuming on track, session changes and loss of window or addon focus close review. |
 
 Inspect `swofty/loader.log` for entries containing `[input-overlay]`. For a [bug report](https://github.com/L0G4NN/F125-Input-Overlay/issues), include addon, launcher/core and game versions, telemetry settings, steps to reproduce and relevant log lines. Check logs for private information before sharing.
 
@@ -106,13 +106,3 @@ Exit F1 25, then disable the addon in your Swofty profile. Use launcher's addon 
 Windows AMD64 compilation, addon exports, system DLL imports, package structure and synthetic packet/trace checks are documented. These checks do not establish successful installation or in-game compatibility.
 
 Actual import/load, keyboard/mouse/controller/wheel behaviour, pause/flashback handling, setup naming, race finalization, settings persistence, coexistence and performance still need game testing. Linux/Proton, VR, HDR/frame generation, multiplayer, split-screen and the 2026 format/Season Pack are untested or outside the initial target. See [conformance](CONFORMANCE.md) and the [test plan](TEST_PLAN.md) for details.
-
-
-## Multi-driver review (current)
-
-[Multi-driver review](MULTI_DRIVER_REVIEW.md) supersedes the player-only recording and trace-count descriptions above. X/Y select independent drivers and completed laps. Each car has up to 70 detailed completed laps, one active trace and 1,024 timing entries. Track length determines the per-driver quota under the 256 MiB recorder budget. Local HUD and the PR #15 pause/focus gates still use only local-player state. Opponent slip/aero data and restricted ERS remain unavailable. See that document for controls, retention limits, packet offsets, rewind handling and validation evidence.
-
-
-## F6 pause access update
-
-F6 now opens whenever Swofty reports a pause, without a fresh-UDP or pre-pause latch requirement. Held keys, controller buttons, triggers, stick drift and other navigation no longer block opening or automatically close review. F6, Escape and Close still close it; resuming on track, window/focus loss, reset and disable still release focus. Unpaused access remains garage-only. Close review manually before setup typing or flashback controls. This supersedes earlier freshness/held-control restrictions above; in-game behaviour remains to be verified.

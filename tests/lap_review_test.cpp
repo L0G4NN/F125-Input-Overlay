@@ -18,7 +18,7 @@ int main() {
     r.accept(meta(2,0,504,5.04f),5.04); check(r.size()==1,"no duplicate completion");
     Plot plot; plot.build(r,0,-1,0,1000); check(plot.series[0][0].valid,"plot data");
     // Sparse 2 m bins at racing speed still form a connected trace, but a
-    // real telemetry gap cannot be bridged. Storage stays exactly 24 bytes/bin.
+    // real telemetry gap cannot be bridged.
     {
         Recorder sparse; check(sparse.initialize(),"sparse init"); sparse.accept(session(),0);
         pair(sparse,1,0,1,.01f); pair(sparse,1,10,2,.02f,false,.6f,.4f);
@@ -59,7 +59,7 @@ int main() {
         t.accept(motion_extra(5,.05f,.9f),.05);pair(t,2,200,5,.05f,false,.9f,1);
         pair(t,3,0,6,.06f);pair(t,3,500,7,.07f);
         check(t.size()==2,"two complete before rewind");auto old=t.lap(1);
-        check(t.extra(old,4,12),"extended abandoned sample exists before rollback");
+        check(t.extra(old,4,12).has_value(),"extended abandoned sample exists before rollback");
         t.accept(pedals(8,.035f,.4f,0),.08); // rewind without distance yet
         t.accept(meta(2,100,8,.035f),.08);
         check(t.size()==1 && t.bin(t.lap(0),0),"earlier lap preserved");
@@ -77,7 +77,7 @@ int main() {
     for(unsigned lap=1;lap<=201;++lap) { time+=.02f; pair(r,lap,0,frame++,time); }
     check(r.size()==200,"high lap count metadata");
     check(!r.lap(127).limited && r.lap(128).limited,"128 detail limit");
-    check(r.bin(r.lap(0),0)!=nullptr && r.bin(r.lap(127),0)!=nullptr && !r.bin(r.lap(128),0),"stable retained storage");
+    check(r.bin(r.lap(0),0) && r.bin(r.lap(127),0) && !r.bin(r.lap(128),0),"stable retained storage");
     std::cout<<"Review lifecycle/bounds checks passed; pool="<<Recorder::storage_bytes()<<" bytes, recorder="<<sizeof(Recorder)<<" bytes\n";
     r.set_recording(false); pair(r,202,0,frame++,time+=.02f); check(r.size()==200,"recording disabled");
     r.set_recording(true); pair(r,202,0,frame++,time+=.02f); pair(r,203,0,frame++,time+=.02f);

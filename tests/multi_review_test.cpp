@@ -8,6 +8,14 @@ using namespace fixture;
 using namespace input_trace::review;
 using namespace multi_fixture;
 int main() {
+    // Every accepted layout fits both backing arrays and retains at least as
+    // many completed laps as the previous 24/16-byte per-bin layout.
+    for(unsigned length=100;length<=16384;++length) {
+        TrackHistory layout(length);
+        const auto old_bytes=22*layout.pedals*24+98*layout.extended*16;
+        assert(layout.slots>=std::min(71u,(255u*1024*1024)/old_bytes));
+        assert(layout.pedal_blocks()<=history_backing[0] && layout.extra_blocks()<=history_backing[1]);
+    }
     auto owner=std::make_unique<MultiRecorder>();auto& r=*owner;assert(r.initialize());
     r.accept(session(),0);r.accept(participants(),.01);
     assert(r.driver_count()==3 && r.player_index()==0);
@@ -23,7 +31,6 @@ int main() {
         assert(c.bin(l,16) && c.bin(l,16)->throttle_max==float(i+1)/23);
         assert(c.extra(l,2,2) && c.extra(l,2,2)->hi==float(i+1));
         assert(bool(c.extra(l,4,2))==(i==0));
-        assert(c.bin(l,16)!=r.driver((i+1)%3).bin(r.driver((i+1)%3).lap(0),16));
     }
     Plot plot;
     plot.build(r.driver(0),0,r.driver(1),0,0,1000);
@@ -58,10 +65,10 @@ int main() {
     m=header(2,1285,14,.14f);car_meta(m,1,5,32);r.accept(m,.14);
     m=header(2,1285,15,.15f);car_meta(m,1,6,0);r.accept(m,.15);
     auto& valid=r.driver(1);assert(valid.bin(valid.lap(valid.size()-1),16)->throttle_max==.6f);
-    // A long race lets every driver finish 70 detailed laps, with timing-only overflow.
+    // A long race lets every driver finish 78 detailed laps, with timing-only overflow.
     r.reset();r.accept(session(1,0,7004),0);r.accept(participants(1,.01f,22),.01);
-    assert(r.detailed_lap_capacity()==70);
-    assert(r.active_storage_bytes()==180044640);
+    assert(r.detailed_lap_capacity()==78);
+    assert(r.active_storage_bytes()==147200384);
     unsigned frame=2;float time=.02f;
     for(unsigned lap=1;lap<=200;++lap) {
         if(lap%20==1) r.accept(participants(frame++,time,22),time);
@@ -73,11 +80,11 @@ int main() {
     for(unsigned i=0;i<22;++i) {
         const auto& car=r.driver(i);
         assert(car.size()==199);metadata+=car.size();
-        assert(car.bin(car.lap(69),3501) && !car.lap(69).limited);
-        assert(car.lap(70).limited && car.lap(70).time_ms==90000+i*1000);
+        assert(car.bin(car.lap(77),3501) && !car.lap(77).limited);
+        assert(car.lap(78).limited && car.lap(78).time_ms==90000+i*1000);
         for(std::size_t j=0;j<r.driver(i).size();++j) if(!r.driver(i).lap(j).limited) ++traces;
     }
-    assert(traces==22*70 && metadata==4378);
+    assert(traces==22*78 && metadata==4378);
     // Global flashback: each car's target lap/distance differs and retains its own prefix.
     m=header(2,1285,frame++,1.f);
     for(unsigned i=0;i<22;++i)car_meta(m,i,2+i%2,20);
@@ -121,7 +128,7 @@ int main() {
     // pedal and extra bins accessible even in the last car slice.
     r.reset();r.accept(session(1,0,16384),0);
     auto capacity=r.detailed_lap_capacity();
-    assert(capacity>0 && capacity<70);
+    assert(capacity>0 && capacity<78);
     const auto max_bytes=r.active_storage_bytes();
     assert(max_bytes+sizeof(r)<telemetry_budget);
     r.accept(participants(1,.01f,22),.01);
@@ -140,7 +147,7 @@ int main() {
     // A new track changes both strides and carries no data from the old
     // partitions. The full channel set follows the new nonzero local player.
     s=session(100,.3f,101);s[27]=21;r.accept(s,.3);
-    assert(r.active_storage_bytes()<max_bytes && r.detailed_lap_capacity()==70);
+    assert(r.active_storage_bytes()<max_bytes && r.detailed_lap_capacity()==78);
     r.accept(participants(101,.31f,22,21),.31);
     m=header(2,1285,102,.32f,21);car_meta(m,21,1,100);
     auto e=motion_extra(102,.32f);e[27]=21;
@@ -150,6 +157,17 @@ int main() {
     const auto& player=r.driver(21);
     assert(player.size()==1 && player.bin(player.lap(0),50) && !player.bin(player.lap(0),49));
     assert(player.extra(player.lap(0),13,6) && !player.extra(player.lap(0),13,5));
+    // Same UID and local index, different track length. Late frames from the
+    // previous layout must not seed the new roster or the local driver's laps.
+    s=session(200,.4f,7004);s[27]=21;r.accept(s,.4);
+    r.accept(participants(180,.36f,22,21),.41);
+    assert(r.driver_count()==1);
+    m=header(2,1285,181,.37f,21);car_meta(m,21,7,32);r.accept(m,.42);
+    m=header(2,1285,182,.38f,21);car_meta(m,21,8,0);r.accept(m,.43);
+    assert(r.driver(21).size()==0 && !r.fresh_lap(.43));
+    r.accept(participants(200,.4f,22,21),.44);
+    m=header(2,1285,200,.4f,21);car_meta(m,21,1,0);r.accept(m,.44);
+    assert(r.driver_count()==22 && r.fresh_lap(.44));
     std::cout<<"Multi-driver isolation, privacy, rewind and 22-car/200-lap checks passed; "
              <<MultiRecorder::storage_bytes()+sizeof(MultiRecorder)<<" bytes total\n";
 }

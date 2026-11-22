@@ -1,6 +1,6 @@
 # Multi-driver lap comparison (F6 default)
 
-Implemented on top of PR #15 and main `d7c6c56`. Synthetic validation and Windows compilation are separate from actual F1 25/Swofty validation, which remains pending.
+Version 0.5.0 supports independent X/Y driver and lap selections. In-game validation remains pending.
 
 ## User controls
 
@@ -32,15 +32,15 @@ Names are copied from the bounded 32-byte field, terminated locally, stripped of
 
 ## Memory and race length
 
-Each of the 22 driver slots can retain up to **70 completed detailed laps plus one active lap**. The validated Session packet supplies the track length. Each lap reserves one pedal bin per 2 m and one extended-channel bin per 16 m, rounding up to cover the finish. The local player reserves all 14 extended channels, and each opponent reserves four (speed, gear and two ERS channels). The float extrema and their gap links retain their existing precision.
+Each of the 22 driver slots can retain up to **78 completed detailed laps plus one active lap**. The validated Session packet supplies the track length. Each lap reserves one pedal bin per 2 m and one extended-channel bin per 16 m, rounding up to cover the finish. The local player reserves all 14 extended channels, and each opponent reserves four (speed, gear and two ERS channels). The float extrema and their gap links retain their existing precision.
 
-The total recorder budget is **256 MiB**, including history backing and per-driver state. The validation build uses 268,285,152 bytes (255.86 MiB) of backing and recorder state. On a 7,004 m layout, the active track layout addresses about **171.7 MiB** of lap-bin storage. On a 1,000 m layout it addresses about **24.6 MiB**. On the longest accepted 16,384 m layout, the quota is **44 completed laps plus one active lap per driver**. F6 displays the calculated quota. After a driver fills their quota, new active laps still have a trace slot. At completion those laps retain timing and quality metadata and appear as **NO TRACE**. Each driver can retain 1,024 timing entries.
+The total recorder budget is **192 MiB**. On the Linux x64 validation build, backing and recorder state total **200,160,168 bytes (190.89 MiB)**. Each block of 32 bins shares a lap stamp and a validity mask. A 16-bit link per bin holds the previous connected index and the discontinuity flag. Pedal and extended blocks occupy 584 and 328 bytes respectively. This preserves the original float extrema and gap semantics. The full 78-lap quota applies through 9,408 m, at least 70 laps fit through 10,496 m, and the maximum accepted 16,384 m layout retains 44 completed laps plus one active lap per driver. F6 displays the calculated quota. After a driver fills their quota, new active laps still have a trace slot. At completion those laps retain timing and quality metadata and appear as **NO TRACE**. Each driver can retain 1,024 timing entries.
 
 Windows reserves and commits zero-backed virtual pages at addon load. Physical pages are first touched as recording uses them. A track change repartitions the existing backing using track-sized regions, and session-wide stamps hide data from old regions without clearing the backing. Session reset, interrupted laps, participant changes and rewind return owned slots to their driver. Lap transitions use a fixed per-driver free-slot stack. There is no full-lap copy, bulk initialization or memory allocation in the paint callback. The 128-datagram receive budget remains in place, and F6 builds plots only for the selected laps and page.
 
 ## Rewind and F6 safeguards
 
-PR #15's opening conditions are preserved: an unpaused fresh garage, or a pause entered with fresh local-player lap metadata and a latched pre-pause context. Resume on track closes review. Held keyboard/controller controls prevent acquisition; typing, other navigation, focus loss and window deactivation release it. Opponent garage states never grant focus. Pauses still cannot reliably distinguish the flashback/replay screen; close F6 before operating flashback. Actual stuck-control behaviour remains an in-game test requirement.
+Review opens in a fresh local-player garage or during a pause with the game window active. Held controls do not block opening. Escape dismisses an open driver dropdown first. The configured shortcut or Close releases focus. Resuming on track, window or focus loss, reset and disabling the addon close review. Close review before setup typing or flashback. Actual game input behaviour still needs validation.
 
 A validated rewind in any recorded car invalidates future history across the field. Each car waits for its own valid lap metadata to locate its target lap and distance. Its history is hidden while that location is unknown. Earlier laps and the target prefix survive; later laps and the boundary/suffix bins are discarded. The boundary bin is conservatively dropped at 2 m for pedals and 16 m for extended channels. Reopened laps are marked partial. Freed slots may be reused without mixing old and new samples. Selections/cache generation resets and closes F6 on a rewind.
 
@@ -50,7 +50,7 @@ A validated rewind in any recorded car invalidates future history across the fie
 
 ## Validation
 
-`ASAN_OPTIONS=detect_leaks=0 bash scripts/test.sh` runs the existing regression suite plus multi-driver tests. Leak detection is disabled only for this host's tracing restrictions. ASan/UBSan remain enabled. Tests cover cross-driver values/timings, independent lap transitions, per-car frame pairing, unsupported Motion Ex, ERS restrictions, participant truncation and labels, malformed high-frame isolation, nonzero player safety, unchanged roster refresh, global rewinds, missing target metadata, 22 cars over 200 laps (4,378 completed metadata entries, 1,540 retained traces), an oversized track with equal reduced quotas, and reuse across track and player changes.
+`ASAN_OPTIONS=detect_leaks=0 bash scripts/test.sh` runs the existing regression suite plus multi-driver tests. Leak detection is disabled only for this host's tracing restrictions. ASan/UBSan remain enabled. Tests cover cross-driver values/timings, independent lap transitions, per-car frame pairing, unsupported Motion Ex, ERS restrictions, participant truncation and labels, malformed high-frame isolation, nonzero player safety, unchanged roster refresh, global rewinds, missing target metadata, 22 cars over 200 laps (4,378 completed metadata entries, 1,716 retained traces), an oversized track with equal reduced quotas, and reuse across track and player changes.
 
 Additional repeatable commands:
 
@@ -64,7 +64,24 @@ ZIG=/path/to/zig-0.14.1 bash scripts/build.sh
 
 The deterministic mutation test exercises 300,000 packets; it is not coverage-guided libFuzzer. Benchmarks measure synthetic CPU ingestion and plot generation, not game frame time or GPU cost. Actual AI data availability, names, final-lap timing, flashback controls, launcher import and CPU/GPU impact require the real game.
 
-### Track-sized recorder benchmark
+### 0.5.0 full-field replay
+
+The dense replay fills every pedal and extended bin through synthetic UDP packets, verifies each retained lap for every car and checks the player-only aero channel. Each run used a fresh Linux process. Peak RSS includes the executable, fixtures and touched recorder pages. Windows commits recorder backing at startup and its in-game working set remains unmeasured.
+
+| Track length | Previous peak RSS, 70 laps | 0.5.0 peak RSS, 70 laps | 0.5.0 peak RSS, 78 laps |
+| ---: | ---: | ---: | ---: |
+| 5,000 m | 123.4 MiB | 91.8 MiB | 101.9 MiB |
+| 7,004 m | 171.8 MiB | 126.9 MiB | 141.1 MiB |
+| 8,000 m | 195.9 MiB | 144.0 MiB | 160.3 MiB |
+
+At 70 and 78 laps the replay verified 1,540 and 1,716 detailed traces respectively. The allocation benchmark recorded zero C++ allocations during packet ingestion and selected-plot rebuilds at 0, 78, 128 and 200 completed laps per car. To reproduce on Linux, compile once and run each layout and lap count in a separate process.
+
+```sh
+g++ -std=c++20 -O2 -Isrc tests/race_replay.cpp -o build/race_replay
+/usr/bin/time -v build/race_replay 7004 78
+```
+
+### Previous track-sized recorder benchmark (PR #20)
 
 The same GCC `-O2` synthetic fixture fed 60,000 four-packet iterations with 22 cars at 0, 78, 128 and 200 completed laps per car. Across two runs, recording took 3.0–3.5 µs per iteration with zero C++ allocations. The prior recorder took 3.4–3.6 µs while all cars had active traces. Its later scenarios cost less in some runs because the shared pool ran out of detail slots. The new recorder continues collecting the active lap after the completed-lap quota is full. These measurements cover packet ingestion only. Windows game callback frame time and working set still need validation.
 
@@ -80,8 +97,3 @@ GCC `-O2` on this Linux host, 60,000 four-packet iterations with 22 active cars 
 | 200 | 1.81 us | 1.18 us | 0 |
 
 The later scenarios are timing-only for current laps after trace storage fills. The faster timings therefore do not imply increasing lap count improves performance. Dense single-player X/Y panel tests still cover all pages, sector lines and cursor readouts under the 16,384-vertex budget; multi-driver UI tests cover independent selectors and unavailable opponent channels. Windows AMD64 build and local package validation pass. No release has been published as part of this change.
-
-
-## F6 pause access update
-
-F6 now opens whenever Swofty reports a pause, without a fresh-UDP or pre-pause latch requirement. Held keys, controller buttons, triggers, stick drift and other navigation no longer block opening or automatically close review. F6, Escape and Close still close it; resuming on track, window/focus loss, reset and disable still release focus. Unpaused access remains garage-only. Close review manually before setup typing or flashback controls. This supersedes earlier freshness/held-control restrictions above; in-game behaviour remains to be verified.

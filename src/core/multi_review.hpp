@@ -35,28 +35,29 @@ inline bool decode_participants(std::span<const unsigned char> p,Pedals& h,
 }
 // Reserve zero-backed storage at load. Each session partitions it into
 // distance-sized, independent driver slices, with one extra slot per active lap.
-constexpr unsigned field_size=22, race_lap_limit=70, opponent_channels=4;
-constexpr std::size_t telemetry_budget=256u*1024*1024;
+constexpr unsigned field_size=22, race_lap_limit=78, opponent_channels=4;
+constexpr std::size_t telemetry_budget=192u*1024*1024;
 // Leave room for per-driver metadata, allocator rounding and split arenas.
-constexpr std::size_t history_budget=255u*1024*1024;
+constexpr std::size_t history_budget=189u*1024*1024;
 struct TrackHistory {
     unsigned pedals, extended, slots;
     constexpr explicit TrackHistory(unsigned length)
         : pedals((length+1)/2),extended((length+15)/16),
           slots(unsigned(std::min<std::size_t>(race_lap_limit+1,
-              history_budget/(field_size*pedals*sizeof(Bin)+
-                  (extra_channels+(field_size-1)*opponent_channels)*extended*sizeof(ExtraBin))))) {}
-    constexpr std::size_t pedal_count() const {return std::size_t(field_size)*pedals*slots;}
-    constexpr std::size_t extra_count() const {
-        return std::size_t(extra_channels+(field_size-1)*opponent_channels)*extended*slots;
+              history_budget/(field_size*block_count(pedals)*sizeof(PedalBlock)+
+                  (extra_channels+(field_size-1)*opponent_channels)*block_count(extended)*sizeof(ExtraBlock))))) {}
+    constexpr std::size_t pedal_blocks() const {return std::size_t(field_size)*block_count(pedals)*slots;}
+    constexpr std::size_t extra_blocks() const {
+        return std::size_t(extra_channels+(field_size-1)*opponent_channels)*block_count(extended)*slots;
     }
 };
 constexpr auto history_backing=[] {
     std::array<std::size_t,2> sizes{};
-    for(unsigned length=100;length<=2*bins_per_lap;++length) {
+    // The rounded block counts can only change at a 64 m boundary.
+    for(unsigned length=1;length<=2*bins_per_lap;length+=2*block_width) {
         const TrackHistory layout(length);
-        sizes[0]=std::max(sizes[0],layout.pedal_count());
-        sizes[1]=std::max(sizes[1],layout.extra_count());
+        sizes[0]=std::max(sizes[0],layout.pedal_blocks());
+        sizes[1]=std::max(sizes[1],layout.extra_blocks());
     }
     return sizes;
 }();
@@ -75,11 +76,11 @@ public:
     // The allocator returns aligned, zero-backed storage or nullptr.
     bool initialize(Allocate allocate=zero_allocate,Release release=std::free) {
         if(available()) return true;
-        std::unique_ptr<Bin,Release> pedals(
-            init_array<Bin>(allocate(history_backing[0]*sizeof(Bin)),history_backing[0]),release);
+        std::unique_ptr<PedalBlock,Release> pedals(
+            init_array<PedalBlock>(allocate(history_backing[0]*sizeof(PedalBlock)),history_backing[0]),release);
         if(!pedals) return false;
-        std::unique_ptr<ExtraBin,Release> extra(
-            init_array<ExtraBin>(allocate(history_backing[1]*sizeof(ExtraBin)),history_backing[1]),release);
+        std::unique_ptr<ExtraBlock,Release> extra(
+            init_array<ExtraBlock>(allocate(history_backing[1]*sizeof(ExtraBlock)),history_backing[1]),release);
         if(!extra) return false;
         pool_=std::move(pedals);extra_=std::move(extra);
         return true;
@@ -133,7 +134,7 @@ public:
     unsigned detailed_lap_capacity() const {return capacity_;}
     std::size_t active_storage_bytes() const {return active_storage_;}
     static constexpr std::size_t storage_bytes() {
-        return history_backing[0]*sizeof(Bin)+history_backing[1]*sizeof(ExtraBin);
+        return history_backing[0]*sizeof(PedalBlock)+history_backing[1]*sizeof(ExtraBlock);
     }
     void accept(std::span<const unsigned char> p,double wall) {
         if(p.size()<29 || !std::isfinite(wall)) return;
@@ -149,6 +150,7 @@ public:
                 reset();
             }
             if(!session_) {
+                first_session_frame_=h.frame;
                 configure_history(len,h.player);
                 ++generation_;
             }
@@ -158,6 +160,8 @@ public:
             return;
         }
         if(!session_ || p[27]!=player_) return;
+        // A delayed roster or car packet can share the UID of a prior track layout.
+        if(newer(first_session_frame_,u32(p.data()+23))) return;
         if(p[6]==4) {
             std::array<Participant,22> next{};
             if(!decode_participants(p,h,next) || h.session!=uid_ ||
@@ -191,14 +195,14 @@ private:
         if(!available()) return;
         const TrackHistory layout(length);
         capacity_=layout.slots-1;
-        active_storage_=layout.pedal_count()*sizeof(Bin)+layout.extra_count()*sizeof(ExtraBin);
+        active_storage_=layout.pedal_blocks()*sizeof(PedalBlock)+layout.extra_blocks()*sizeof(ExtraBlock);
         auto* pedals=pool_.get();
         auto* extra=extra_.get();
         for(unsigned i=0;i<field_size;++i) {
             const unsigned channels=i==player?extra_channels:opponent_channels;
             cars_[i].attach(pedals,extra,stamp_,layout.slots,capacity_,channels,layout.pedals,layout.extended);
-            pedals+=layout.slots*layout.pedals;
-            extra+=layout.slots*channels*layout.extended;
+            pedals+=layout.slots*block_count(layout.pedals);
+            extra+=layout.slots*channels*block_count(layout.extended);
         }
     }
     static bool newer(std::uint32_t a,std::uint32_t b) {return a!=b && std::uint32_t(a-b)<0x80000000u;}
@@ -215,8 +219,8 @@ private:
             ++generation_;
         }
     }
-    std::unique_ptr<Bin,Release> pool_{nullptr,std::free};
-    std::unique_ptr<ExtraBin,Release> extra_{nullptr,std::free};
+    std::unique_ptr<PedalBlock,Release> pool_{nullptr,std::free};
+    std::unique_ptr<ExtraBlock,Release> extra_{nullptr,std::free};
     std::array<Recorder,22> cars_{};
     std::array<std::uint32_t,22> identity_frame_{};
     std::array<bool,22> identity_known_{};
@@ -225,7 +229,7 @@ private:
     std::array<std::uint64_t,64> retired_{};
     std::size_t retire_pos_{};
     std::uint64_t uid_{};
-    std::uint32_t session_frame_{},roster_frame_{};
+    std::uint32_t session_frame_{},first_session_frame_{},roster_frame_{};
     std::size_t active_storage_{};
     unsigned player_{},generation_{},track_{},length_{},stamp_{},capacity_{};
     double roster_wall_{};

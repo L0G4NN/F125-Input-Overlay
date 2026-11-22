@@ -11,15 +11,15 @@ using namespace input_trace::review;
 namespace {
 constexpr int default_hotkey=117; // Win32 VK_F6
 int bound_hotkey=default_hotkey;
-char rendered_key_hint[64]{};
+char rendered_key_hint[64]{}, x_summary[96]{};
 bool opponent_selected=false,unavailable_hint=false,last_driver_visible=false,last_driver_selected=false;
 SwoftyInput input{}; int sectors=0; int glyphs=0; bool amber=false,cyan=false; int focus_calls=0, lines=0, texts=0,rects=0, input_calls=0; bool focused=false; int focus_result=SWOFTY_ASSET_OK;
 int read_input(const SwoftyPaint*,SwoftyInput* out) { ++input_calls; *out=input; out->focused=focused; return SWOFTY_ASSET_OK; }
-int focus(int on) { ++focus_calls; if(focus_result==SWOFTY_ASSET_OK || !on) focused=on!=0; return focus_result; }
+int focus(int on) { ++focus_calls; if(focus_result==SWOFTY_ASSET_OK || focus_result==SWOFTY_ASSET_LATE || !on) focused=on!=0; return focus_result; }
 void size(const SwoftyPaint*,float* w,float* h) {*w=1920;*h=1080;}
 void rect(SwoftyPaint*,float,float,float,float,uint32_t) {++rects;}
 void line(SwoftyPaint*,float x,float y,float a,float b,float,uint32_t colour) {if(colour==0xffffff80) ++sectors;if(colour==0xffbd59ff) amber=true;if(colour==Theme::x) cyan=true;if(!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(a)||!std::isfinite(b))std::abort();++lines;}
-void text(SwoftyPaint*,float,float,float,uint32_t,const char* str) {++texts;glyphs+=int(std::strlen(str));if(std::strstr(str,"22  Driver 22"))last_driver_visible=true;if(std::strstr(str,"Y: Driver 22 / no lap"))last_driver_selected=true;if(std::strstr(str,"Y: Driver 2 / lap 1"))opponent_selected=true;if(std::strstr(str,"Player-only"))unavailable_hint=true;if(std::strstr(str," / Esc  Close review"))std::snprintf(rendered_key_hint,sizeof rendered_key_hint,"%s",str);}
+void text(SwoftyPaint*,float,float,float,uint32_t,const char* str) {if(std::strncmp(str,"X: ",3)==0)std::snprintf(x_summary,sizeof x_summary,"%s",str);++texts;glyphs+=int(std::strlen(str));if(std::strstr(str,"22  Driver 22"))last_driver_visible=true;if(std::strstr(str,"Y: Driver 22 / no lap"))last_driver_selected=true;if(std::strstr(str,"Y: Driver 2 / lap 1"))opponent_selected=true;if(std::strstr(str,"Player-only"))unavailable_hint=true;if(std::strstr(str," / Esc  Close review"))std::snprintf(rendered_key_hint,sizeof rendered_key_hint,"%s",str);}
 void check(bool ok) {if(!ok)std::abort();}
 }
 int main() {
@@ -130,5 +130,12 @@ int main() {
     input={};input.x=380;input.y=300;input.wheel=1;draw_grid();
     input={};input.keys_pressed[27/8]|=1u<<(27%8);draw_grid();check(cross.open());
     input={};last_driver_selected=false;draw_grid();check(last_driver_selected);
+    cross.close(&ov);
+    grid->reset();grid->accept(fixture::session(),0);
+    for(unsigned lap=1;lap<=81;++lap)
+        multi_fixture::pair_grid(*grid,lap,lap*.02f,lap,0);
+    input={};input.keys_pressed[default_hotkey/8]|=1u<<(default_hotkey%8);draw_grid();
+    input={};draw_grid();
+    check(std::strcmp(x_summary,"X: Player / lap 78")==0);
     std::cout<<"Panel focus, feature-gating and draw-budget checks passed\n";
 }

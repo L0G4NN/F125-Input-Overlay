@@ -11,7 +11,7 @@ The display uses game-reported inputs, not pedal force or raw hardware readings.
 
 ## Preview
 
-The live HUD image shows the earlier layout. The F6 preview is rendered from the current panel using synthetic lap data; in-game appearance may vary.
+The live HUD image shows the earlier layout. The lap-review preview uses synthetic data from an earlier build. Its footer shows the previous F8 shortcut and 70-lap quota.
 
 ### Live inputs
 
@@ -19,7 +19,7 @@ The live HUD image shows the earlier layout. The F6 preview is rendered from the
 
 ### F6 lap comparison
 
-![F6 lap comparison with the current theme and synthetic laps](__ORIGINAL_F6_SVG__)
+![F6 lap comparison with the current theme and synthetic laps](docs/images/F8-themed-preview.svg)
 
 ## Install and start driving
 
@@ -57,7 +57,7 @@ Leave **Record session laps in memory** on while driving. Pause during the sessi
 
 Choose drivers independently with the **X v** and **Y v** buttons. Use **Laps: X driver / Y driver** to choose whose list to browse, then select **X** and **Y** beside completed laps. X is cyan and Y is amber, with separate comparison graphs for throttle and brake. Scroll over a graph to zoom, drag to pan, and use **Reset view** to fit the lap. Press **Escape**, **Close**, or your review key to return to the game. The default review key is F6 and can be changed to F6–F12. Existing Swofty profiles may retain a saved F8 binding; change it in addon settings.
 
-**F6 retains up to 70 detailed completed laps per driver**, plus the active lap, for up to 22 cars. Later laps show **NO TRACE** and retain timing. Very long layouts may lower the per-driver quota to stay within the 256 MiB recorder budget. F6 displays the session quota. Slip and aero data remain player-only; restricted opponent ERS is shown as unavailable. See [multi-driver review](docs/MULTI_DRIVER_REVIEW.md) for limits and validation.
+**The recorder retains up to 78 detailed completed laps per driver**, plus the active lap, for up to 22 cars. Later laps show **NO TRACE** and retain timing. Very long layouts may lower the per-driver quota to stay within the 192 MiB recorder budget. F6 displays the session quota. Slip and aero data remain player-only; restricted opponent ERS is shown as unavailable. See [multi-driver review](docs/MULTI_DRIVER_REVIEW.md) for limits and validation.
 
 Recorded laps stay in memory only. Exiting the game or a session reset clears them. A detected rewind preserves earlier laps and the affected lap’s prefix, discarding the abandoned suffix and later laps. There is no save or export feature. See the [full user guide](docs/INSTALL.md#review-and-compare-laps) for controls and recording limits.
 
@@ -81,8 +81,3 @@ The live HUD is hidden in garage/paused/unknown contexts by default to avoid cov
 Review closes when resuming on track. Held controls do not block paused review. Paused access cannot distinguish ordinary pause from replay/flashback; close F6 before using flashback controls. The reported stuck-throttle behaviour still requires in-game verification; this addon does not write vehicle inputs.
 
 F6 also includes Speed/Gear, ERS, per-wheel Slip and Aero Height pages, with dashed S2/S3 boundaries. The live HUD shows the reported front-wheel steering angle in degrees. See [extended telemetry](docs/EXTENDED_TELEMETRY.md) for units, 16 m resolution and validation limits.
-
-
-## F6 pause access update
-
-F6 now opens whenever Swofty reports a pause, without a fresh-UDP or pre-pause latch requirement. Held keys, controller buttons, triggers, stick drift and other navigation no longer block opening or automatically close review. F6, Escape and Close still close it; resuming on track, window/focus loss, reset and disable still release focus. Unpaused access remains garage-only. Close review manually before setup typing or flashback controls. This supersedes earlier freshness/held-control restrictions above; in-game behaviour remains to be verified.
