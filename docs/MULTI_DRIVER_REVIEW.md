@@ -1,6 +1,6 @@
 # Multi-driver lap comparison (F6 default)
 
-Version 0.5.0 supports independent X/Y driver and lap selections. In-game validation remains pending.
+Version 0.5.1 supports independent X/Y driver and lap selections. In-game validation remains pending.
 
 ## User controls
 
@@ -26,7 +26,7 @@ A lap number belongs to its driver; it does not refer to the leader's lap or a c
 
 The header's local-player index remains distinct from the selected car-array index. The live pedal HUD, steering readout, garage visibility and pause/focus safety all follow the local player, even when an AI car is in its garage or selected for review. Multiplayer, split-screen, spectator mode and UDP format 2026 remain outside the supported scope.
 
-Opponent recording starts only after a validated Participants packet establishes active slots. Participant packets older than ten seconds suspend opponent ingestion until refreshed; a gap is inserted. Existing completed traces remain readable. Ordinary unchanged participant refreshes do not close F6 or reset selections. Identity or telemetry-permission changes clear the affected car's history, release its slots and invalidate selections. Packets preceding that identity change cannot populate the replacement occupant's history.
+Opponent recording starts only after a validated Participants packet establishes active slots. Participant packets older than ten seconds suspend opponent ingestion until refreshed; a gap is inserted. Existing completed traces remain readable, including after a driver disappears from the roster. Ordinary unchanged participant refreshes do not close F6 or reset selections. Identity or telemetry-permission changes clear the affected car's history, release its slots and invalidate selections. Packets preceding that identity change cannot populate the replacement occupant's history.
 
 Names are copied from the bounded 32-byte field, terminated locally, stripped of control bytes and displayed with non-ASCII bytes replaced by `?` for the default font. Car slot numbers distinguish similar/truncated names. Missing names use a car-number fallback. No remote strings are used as format strings.
 
@@ -34,7 +34,7 @@ Names are copied from the bounded 32-byte field, terminated locally, stripped of
 
 Each of the 22 driver slots can retain up to **78 completed detailed laps plus one active lap**. The validated Session packet supplies the track length. Each lap reserves one pedal bin per 2 m and one extended-channel bin per 16 m, rounding up to cover the finish. The local player reserves all 14 extended channels, and each opponent reserves four (speed, gear and two ERS channels). The float extrema and their gap links retain their existing precision.
 
-The total recorder budget is **192 MiB**. On the Linux x64 validation build, backing and recorder state total **200,160,168 bytes (190.89 MiB)**. Each block of 32 bins shares a lap stamp and a validity mask. A 16-bit link per bin holds the previous connected index and the discontinuity flag. Pedal and extended blocks occupy 584 and 328 bytes respectively. This preserves the original float extrema and gap semantics. The full 78-lap quota applies through 9,408 m, at least 70 laps fit through 10,496 m, and the maximum accepted 16,384 m layout retains 44 completed laps plus one active lap per driver. F6 displays the calculated quota. After a driver fills their quota, new active laps still have a trace slot. At completion those laps retain timing and quality metadata and appear as **NO TRACE**. Each driver can retain 1,024 timing entries.
+The total recorder budget is **192 MiB**. On the 0.5.0 Linux x64 validation build, backing and recorder state total **200,160,168 bytes (190.89 MiB)**. Each block of 32 bins shares a lap stamp and a validity mask. A 16-bit link per bin holds the previous connected index and the discontinuity flag. Pedal and extended blocks occupy 584 and 328 bytes respectively. This preserves the original float extrema and gap semantics. The full 78-lap quota applies through 9,408 m, at least 70 laps fit through 10,496 m, and the maximum accepted 16,384 m layout retains 44 completed laps plus one active lap per driver. F6 displays the calculated quota. Laps with timing but no recorded samples release their trace slot. After a driver fills their quota, new active laps still have a trace slot. At completion those laps retain timing and quality metadata and appear as **NO TRACE**. Each driver can retain 1,024 timing entries.
 
 Windows reserves and commits zero-backed virtual pages at addon load. Physical pages are first touched as recording uses them. A track change repartitions the existing backing using track-sized regions, and session-wide stamps hide data from old regions without clearing the backing. Session reset, interrupted laps, participant changes and rewind return owned slots to their driver. Lap transitions use a fixed per-driver free-slot stack. There is no full-lap copy, bulk initialization or memory allocation in the paint callback. The 128-datagram receive budget remains in place, and F6 builds plots only for the selected laps and page.
 

@@ -240,7 +240,10 @@ public:
                 lo=std::min(lo,plot_.series[s][v.previous].last);hi=std::max(hi,plot_.series[s][v.previous].last);
             }
             float y0=top+lane*(1-norm(hi,s%2)), y1=top+lane*(1-norm(lo,s%2));
-            ov->line(paint,ox+xx*scale,oy+y0*scale,ox+xx*scale,oy+y1*scale,2*scale,colour);
+            if(y0==y1) {
+                if(v.previous<0 || v.broken || plot_.series[s][v.previous].broken)
+                    rect(xx-1,y0-1,2,2,colour);
+            } else ov->line(paint,ox+xx*scale,oy+y0*scale,ox+xx*scale,oy+y1*scale,2*scale,colour);
         }
         // Sector locations come from Session data, never inferred from thirds.
         for(unsigned sector=0;sector<2;++sector) {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 — Lap retention and race results
+
+- Ignore inactive car records before rewind detection. Preserve completed laps when a driver drops off the roster.
+- Reuse trace slots from timing-only laps. Finalize known cars even if the participant roster expires, and fill missing lap times from late Lap Data or final Session History.
+- Show isolated samples and bins that overlap the zoom boundary.
+- Reject packages when the manifest version or DLL checksum disagrees with the native build metadata.
+
 ## 0.5.0 — Full-field race recording
 
 - Retain up to 78 detailed completed laps and one active lap for each of 22 drivers. The session quota adjusts to track length and appears in review. Later laps retain timing and quality labels.

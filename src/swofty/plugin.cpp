@@ -99,9 +99,11 @@ void paint(SwoftyPaint* p,void*) {
                 else { receive_gate.exhausted(); feed.trace.unavailable(); recorder.gap(); }
                 break;
             }
+            const std::span<const unsigned char> bytes{packet,std::size_t(got)};
             if(!is_paused && receive_gate.accept()) {
-                const std::span<const unsigned char> bytes{packet,std::size_t(got)};
                 feed.accept(bytes,now); recorder.accept(bytes,now);
+            } else if(is_paused && bytes.size()>=29 && (bytes[6]==8 || bytes[6]==11)) {
+                recorder.accept(bytes,now);
             }
         }
         if(!drained) { receive_gate.exhausted(); feed.trace.unavailable(); recorder.gap(); }

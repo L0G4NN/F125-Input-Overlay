@@ -13,7 +13,7 @@ inline Bytes session(std::uint32_t frame=0,float time=0,unsigned length=1000,std
     auto p=header(1,753,frame,time,0,uid); p[33]=length&255; p[34]=length>>8; p[36]=1; return p;
 }
 inline Bytes meta(unsigned lap,float distance,std::uint32_t frame,float time,unsigned driver=1,unsigned last_ms=90000,bool invalid=false) {
-    auto p=header(2,1285,frame,time); put(p,29,last_ms); fp(p,49,distance); p[62]=lap; p[66]=invalid; p[73]=driver; return p;
+    auto p=header(2,1285,frame,time); put(p,29,last_ms); fp(p,49,distance); p[62]=lap; p[66]=invalid; p[73]=driver; p[74]=2; return p;
 }
 inline Bytes pedals(std::uint32_t frame,float time,float throttle=.75f,float brake=.25f) {
     auto p=header(6,1352,frame,time); fp(p,31,throttle); fp(p,39,brake); return p;

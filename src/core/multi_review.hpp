@@ -87,7 +87,7 @@ public:
     }
     void reset() {
         for(auto& r:cars_) r.reset();
-        roster_={};roster_seen_=false;session_=false;opponents_fresh_=false;
+        roster_={};present_={};roster_seen_=false;session_=false;opponents_fresh_=false;
         identity_known_={};capacity_=0;active_storage_=0;
         ++generation_;
     }
@@ -169,15 +169,32 @@ public:
             bool changed=!roster_seen_;
             for(unsigned i=0;i<22;++i) {
                 // Never join two occupants of the same car slot or retain private ERS.
-                if(roster_seen_ && (!next[i].same_identity(roster_[i]) || next[i].public_!=roster_[i].public_)) {
+                const bool returning=next[i].active && !present_[i];
+                if(next[i].active && roster_[i].active &&
+                   (!next[i].same_identity(roster_[i]) || next[i].public_!=roster_[i].public_)) {
                     cars_[i].reset();cars_[i].accept(session_packet_,wall,i);changed=true;identity_known_[i]=true;identity_frame_[i]=h.frame;
                 }
+                if(i!=player_ && present_[i] && !next[i].active) cars_[i].gap();
+                if(i!=player_ && returning) {
+                    identity_known_[i]=true;identity_frame_[i]=h.frame;
+                    changed|=!roster_[i].active;
+                }
+                present_[i]=next[i].active;
+                if(next[i].active) roster_[i]=next[i];
             }
-            if(!roster_seen_) for(unsigned i=0;i<22;++i) if(i!=player_ && next[i].active) {
-                identity_known_[i]=true;identity_frame_[i]=h.frame;
-            }
-            roster_=next;roster_seen_=true;roster_frame_=h.frame;roster_wall_=wall;opponents_fresh_=true;
+            roster_seen_=true;roster_frame_=h.frame;roster_wall_=wall;opponents_fresh_=true;
             if(changed) ++generation_;
+            return;
+        }
+        // Race-end updates apply to previously identified cars even after
+        // periodic participant updates stop. Session History targets one car.
+        if(p[6]==8) {
+            for(unsigned i=0;i<22;++i) if(i==player_ || roster_[i].active) dispatch(i,p,wall);
+            return;
+        }
+        if(p[6]==11) {
+            if(p.size()==1460 && p[29]<22 && (p[29]==player_ || roster_[p[29]].active))
+                dispatch(p[29],p,wall);
             return;
         }
         const bool fresh=roster_seen_ && wall>=roster_wall_ && wall-roster_wall_<=10;
@@ -185,7 +202,7 @@ public:
         opponents_fresh_=fresh;
         dispatch(player_,p,wall);
         if(!fresh) return;
-        for(unsigned i=0;i<22;++i) if(i!=player_ && roster_[i].active) {
+        for(unsigned i=0;i<22;++i) if(i!=player_ && present_[i]) {
             if(p[6]==13 || (p[6]==7 && !roster_[i].public_)) continue;
             dispatch(i,p,wall);
         }
@@ -223,7 +240,7 @@ private:
     std::unique_ptr<ExtraBlock,Release> extra_{nullptr,std::free};
     std::array<Recorder,22> cars_{};
     std::array<std::uint32_t,22> identity_frame_{};
-    std::array<bool,22> identity_known_{};
+    std::array<bool,22> identity_known_{},present_{};
     std::array<Participant,22> roster_{};
     std::array<unsigned char,753> session_packet_{};
     std::array<std::uint64_t,64> retired_{};

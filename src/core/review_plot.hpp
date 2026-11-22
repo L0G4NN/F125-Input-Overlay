@@ -27,8 +27,10 @@ struct Plot {
             auto last=std::size_t(std::clamp(end/spacing,0.f,float(count-1)));
             int previous_bin[2]{-1,-1},previous_col[2]{-1,-1};
             for(auto i=first;i<=last;++i) {
-                float d=float(i)*spacing;
-                if(d<begin || d>end) continue;
+                // The first bin can overlap the view even if it starts offscreen.
+                const float start=float(i)*spacing;
+                if(start>end || start+spacing<=begin) continue;
+                const float d=std::max(begin,start);
                 auto col=std::min(unsigned((d-begin)/(end-begin)*columns),columns-1);
                 const auto pedal=ext?std::nullopt:r.bin(lap,i);
                 if(!ext && !pedal) continue;

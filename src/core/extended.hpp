@@ -59,13 +59,20 @@ public:
     void attach(ExtraBlock* bins,unsigned slots,unsigned channels,unsigned distance_bins) {
         bins_=bins;slots_=slots;channels_=channels;distance_bins_=distance_bins;blocks_per_channel_=block_count(distance_bins);
     }
+    bool has_samples(unsigned stamp) const { return last_sample_stamp_==stamp && visible_samples_>0; }
     void gap() { pending_={}; previous_={}; steering_valid_=false; }
     void truncate(unsigned slot,unsigned stamp,float distance) {
         gap();
         if(!bins_ || slot>=slots_) return;
+        last_sample_stamp_=stamp;
+        visible_samples_=0;
         const auto first=unsigned(std::clamp(distance/16.f,0.f,float(distance_bins_)));
-        for(unsigned c=0;c<channels_;++c)
-            ExtraBlock::truncate(channel_blocks(slot,c),blocks_per_channel_,stamp,first);
+        for(unsigned c=0;c<channels_;++c) {
+            auto* blocks=channel_blocks(slot,c);
+            ExtraBlock::truncate(blocks,blocks_per_channel_,stamp,first);
+            for(std::size_t i=0;i<blocks_per_channel_;++i)
+                visible_samples_+=blocks[i].sample_count(stamp);
+        }
     }
     // Completed laps are immutable so the cached review cannot miss late writes.
     void seal(unsigned stamp) {
@@ -108,11 +115,17 @@ private:
                     m.time-prev.time<=.1 && m.distance>=prev.distance && m.distance-prev.distance<=100;
                 auto& block=channel_blocks(m.slot,c)[index/block_width];
                 const unsigned link=linked && prev.bin<index?(prev.bin+1)<<1:0;
-                block.record(m.stamp,index,{p.values[c],p.values[c]},link,!linked);
+                if(last_sample_stamp_!=m.stamp) {
+                    last_sample_stamp_=m.stamp;
+                    visible_samples_=0;
+                }
+                visible_samples_+=block.record(m.stamp,index,{p.values[c],p.values[c]},link,!linked);
                 prev={m.stamp,m.slot,index,m.time,m.distance,true};
             }
         }
     }
+    unsigned last_sample_stamp_{};
+    int visible_samples_{};
     ExtraBlock* bins_{};
     std::size_t blocks_per_channel_{};
     unsigned slots_{},channels_{},distance_bins_{};

@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -24,7 +25,7 @@ struct BinBlock {
             return std::nullopt;
         return Sample{values[lane], links[lane]};
     }
-    void record(unsigned lap_stamp, std::size_t index, Extrema sample,
+    int record(unsigned lap_stamp, std::size_t index, Extrema sample,
                 unsigned predecessor_link, bool interrupted) {
         if (stamp != lap_stamp) {
             stamp = lap_stamp;
@@ -34,12 +35,20 @@ struct BinBlock {
         const auto bit = 1u << lane;
         if (occupied & bit) {
             values[lane].include(sample);
-            if (interrupted) links[lane] |= 1u;
-        } else {
-            occupied |= bit;
-            values[lane] = sample;
-            links[lane] = static_cast<std::uint16_t>(predecessor_link);
+            if (!interrupted || (links[lane] & 1u)) return 0;
+            links[lane] |= 1u;
+            return -1;
         }
+        occupied |= bit;
+        values[lane] = sample;
+        links[lane] = static_cast<std::uint16_t>(predecessor_link);
+        return 1;
+    }
+    int sample_count(unsigned lap_stamp) const {
+        int count=0;
+        for(auto lanes=stamp==lap_stamp?occupied:0u;lanes;lanes&=lanes-1)
+            count+=!(links[std::countr_zero(lanes)] & 1u);
+        return count;
     }
     // Drop the rewind boundary and suffix. Full blocks need just one mask write.
     static void truncate(BinBlock* blocks, std::size_t count, unsigned lap_stamp, std::size_t first) {

@@ -24,6 +24,10 @@ for option in manifest['options']:
         assert abs((option['default']-lo)/step - round((option['default']-lo)/step)) < 1e-8
 dll = root / 'build/native/input_overlay.dll'
 binary = dll.read_bytes()
+build_info = (root / 'build/BUILD-INFO.txt').read_text().splitlines()
+expected = f"F1 25 Input Overlay {manifest['version']} experimental"
+if not build_info or build_info[0] != expected or f"DLL SHA256: {hashlib.sha256(binary).hexdigest()}" not in build_info:
+    raise SystemExit('The native build does not match this package. Run scripts/build.sh first.')
 assert binary[:2] == b'MZ', 'Missing Windows PE header'
 pe = struct.unpack_from('<I', binary, 0x3c)[0]
 assert binary[pe:pe+4] == b'PE\0\0'

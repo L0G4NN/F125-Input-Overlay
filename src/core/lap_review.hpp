@@ -124,16 +124,35 @@ public:
             if(!header(h,8,1042) || !session_ || h.session!=uid_ || h.player!=player_ ||
                p[29]>22 || h.player>=p[29] || !newer(3,h.frame)) return;
             const auto* c=p.data()+30+46*h.player;
-            if(c[5]>7 || c[1]==0) return;
+            if(c[5]<3 || c[5]>7) return;
             if(rewound_ && h.frame!=rewind_frame_ && std::uint32_t(h.frame-rewind_frame_)>=0x80000000u) return;
             remember(3,h);
-            if(active_ && c[1]==current_.number) { finish(0); active_=false; }
-            finished_=true; return;
+            if(active_) {
+                if(c[1]==current_.number) finish(0);
+                else release_current();
+                active_=false;
+            }
+            classification_frame_=h.frame;
+            finished_=true;
+            backfill_history();
+            return;
+        }
+        if(p[6]==11) {
+            if(!header(h,11,1460) || !session_ || h.session!=uid_ || p[29]!=player_ ||
+               p[30]>history_times_.size() || !newer(6,h.frame) ||
+               (rewound_ && precedes(h.frame,rewind_frame_))) return;
+            remember(6,h);
+            history_count_=p[30];
+            for(unsigned i=0;i<history_count_;++i)
+                history_times_[i]=u32(p.data()+36+14*i);
+            if(finished_) backfill_history();
+            return;
         }
         Meta m{}; ExtraPacket extended{}; bool have_extra=false;
         if(p[6]==2) {
             if(!header(h,2,1285)) return;
             const auto* c=p.data()+29+57*h.player;
+            if(c[45]<2 || c[45]>7) return; // Invalid or inactive car entry.
             float d=f32(c+20);
             if(!std::isfinite(d) || d < -2000 || d>length_+100 || c[33]==0 || c[37]>1 || c[44]>4 || u32(c)>3600000) return;
             m={h,d,c[33],u32(c),c[44],c[37]!=0}; stream=1;
@@ -150,6 +169,11 @@ public:
         } else return;
         if(!session_ || h.session!=uid_ || h.player!=player_ || !newer(stream,h.frame)) return;
         if(rewound_ && h.frame!=rewind_frame_ && std::uint32_t(h.frame-rewind_frame_)>=0x80000000u) return;
+        // A reordered final-lap timing packet can arrive after classification.
+        if(finished_ && stream==1 && !precedes(classification_frame_,h.frame)) {
+            backfill_lap_time(m);
+            return;
+        }
         if(!rewind_pending_ && ((seen_[stream] && h.time<times_[stream]) || (stream==1 && active_ && m.lap<current_.number))) {
             request_rewind(h);
         }
@@ -160,7 +184,8 @@ public:
         }
         if(stream==1) {
             garage_=m.driver==0; lap_seen_=true; lap_wall_=wall;
-            if(!recording_ || !bins_ || finished_) return;
+            if(finished_) { backfill_lap_time(m); return; }
+            if(!recording_ || !bins_) return;
             if(active_ && m.lap!=current_.number) {
                 if(m.lap==current_.number+1) finish(m.last_ms); // skipped transitions are never invented as completed laps
                 else release_current();
@@ -174,7 +199,7 @@ public:
                 if(!current_.limited) current_.slot=free_slots_[--free_count_];
                 current_.partial=m.distance>20 || m.distance<0;
                 current_.first=m.distance; current_.last=m.distance;
-                active_=true; broken_=true; have_sample_=false;
+                active_=true; broken_=true; have_sample_=false; pedal_samples_=0;
             }
             current_.invalid|=m.invalid; current_.out|=m.driver==3; current_.in|=m.driver==2;
         }
@@ -196,6 +221,22 @@ public:
         }
     }
 private:
+    static bool precedes(std::uint32_t a,std::uint32_t b) {
+        return a!=b && std::uint32_t(b-a)<0x80000000u;
+    }
+    void backfill_history() {
+        if(!seen_[6] || precedes(frames_[6],classification_frame_)) return;
+        for(std::size_t i=0;i<count_;++i) {
+            auto& lap=laps_[i];
+            if(lap.number>history_count_) break;
+            const unsigned ms=history_times_[lap.number-1];
+            if(!lap.time_ms && ms && ms<=3600000) lap.time_ms=ms;
+        }
+    }
+    void backfill_lap_time(const Meta& m) {
+        if(count_ && !laps_[count_-1].time_ms && m.lap==laps_[count_-1].number+1)
+            laps_[count_-1].time_ms=m.last_ms;
+    }
     void truncate(const Meta& m) {
         Lap retained{}; bool found=active_ && current_.number==m.lap;
         if(found) retained=current_;
@@ -208,13 +249,16 @@ private:
             if(!found || laps_[i].stamp!=retained.stamp) release(laps_[i]);
         }
         count_=keep;
-        active_=found; have_sample_=false;broken_=true;pairs_={};extras_.gap();
+        active_=found; have_sample_=false; pedal_samples_=0;broken_=true;pairs_={};extras_.gap();
         if(!found) return;
         current_=retained;current_.time_ms=0;current_.partial=true;
         current_.last=m.distance;
         if(!current_.limited && bins_) {
             const auto first=std::size_t(std::clamp(m.distance/2.f,0.f,float(distance_bins_)));
-            PedalBlock::truncate(slot_blocks(current_.slot),blocks_per_slot_,current_.stamp,first);
+            auto* blocks=slot_blocks(current_.slot);
+            PedalBlock::truncate(blocks,blocks_per_slot_,current_.stamp,first);
+            for(std::size_t i=0;i<blocks_per_slot_;++i)
+                pedal_samples_+=blocks[i].sample_count(current_.stamp);
             extras_.truncate(current_.slot,current_.stamp,m.distance);
         }
     }
@@ -223,7 +267,7 @@ private:
         if(count_==lap_limit) {release_current();return;}
         current_.partial|=!have_sample_ || current_.last<length_-100;
         if(!current_.limited) {
-            if(retained_==retention_) {
+            if(retained_==retention_ || (!pedal_samples_ && !extras_.has_samples(current_.stamp))) {
                 release_current();
                 current_.limited=true;
             } else ++retained_;
@@ -245,7 +289,7 @@ private:
             const auto previous=std::size_t(std::max(0.f,current_.last)/2);
             const unsigned link=!interrupted && have_sample_ && previous<i ? unsigned((previous+1)<<1) : 0;
             auto& block=slot_blocks(current_.slot)[i/block_width];
-            block.record(current_.stamp,i,{p.throttle,p.throttle,p.brake,p.brake},link,interrupted);
+            pedal_samples_+=block.record(current_.stamp,i,{p.throttle,p.throttle,p.brake,p.brake},link,interrupted);
         }
         current_.last=m.distance; last_time_=p.time; have_sample_=true; broken_=false;
     }
@@ -277,17 +321,20 @@ private:
     std::array<Lap,lap_limit> laps_{};
     std::array<Pair,8> pairs_{};
     std::array<std::uint64_t,64> retired_{};
-    std::array<std::uint32_t,6> frames_{};
-    std::array<double,6> times_{};
-    std::array<bool,6> seen_{};
+    std::array<std::uint32_t,7> frames_{};
+    std::array<double,7> times_{};
+    std::array<bool,7> seen_{};
     Lap current_{};
+    std::array<unsigned,100> history_times_{};
+    unsigned history_count_{};
     std::size_t count_{}, retire_pos_{};
     std::uint64_t uid_{};
     unsigned player_{}, track_{}, generation_{};
-    std::uint32_t rewind_frame_{};
+    std::uint32_t rewind_frame_{}, classification_frame_{};
     bool rewound_{}, finished_{}, rewind_pending_{};
     float length_{};
     double last_time_{}, lap_wall_{};
+    int pedal_samples_{};
     bool active_{}, session_{}, garage_{}, lap_seen_{}, recording_{true}, broken_{true}, have_sample_{};
 };
 static_assert(Recorder::storage_bytes()+sizeof(Recorder)<64u*1024*1024);

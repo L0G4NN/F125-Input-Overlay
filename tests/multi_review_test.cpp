@@ -168,6 +168,46 @@ int main() {
     r.accept(participants(200,.4f,22,21),.44);
     m=header(2,1285,200,.4f,21);car_meta(m,21,1,0);r.accept(m,.44);
     assert(r.driver_count()==22 && r.fresh_lap(.44));
+    // A non-active array entry cannot masquerade as a flashback.
+    r.reset();r.accept(session(),0);r.accept(participants(1,.01f,2),.01);
+    pair_grid(r,2,.02f,1,32,2);
+    pair_grid(r,3,.03f,2,960,2);
+    m=header(2,1285,4,.04f);
+    car_meta(m,0,2,970);car_meta(m,1,1,0);m[29+57+45]=1;
+    auto generation=r.generation();
+    r.accept(m,.04);
+    assert(r.generation()==generation && r.driver(0).size()==1 && r.driver(1).size()==1);
+
+    // A missing roster entry remains selectable, and classification can
+    // finish its active lap even after the last roster has gone stale.
+    r.accept(participants(5,.05f,1),.05);
+    assert(r.driver_count()==2 && r.driver(1).size()==1);
+    auto final=header(8,1042,7,10.2f);
+    final[29]=2;final[31]=2;final[35]=3;final[31+46]=2;final[35+46]=3;
+    auto history=header(11,1460,8,10.3f);
+    history[29]=1;history[30]=2;put(history,36+14,91456);
+    r.accept(history,10.19); // Newer packet arrives before classification.
+    assert(r.driver(1).size()==1);
+    r.accept(final,10.2);
+    assert(r.driver(0).size()==2 && r.driver(1).size()==2 && r.driver(1).lap(1).time_ms==91456);
+    m=header(2,1285,6,10.1f);
+    car_meta(m,0,3,0,87321);
+    r.accept(m,10.21);
+    assert(r.driver(0).lap(1).time_ms==87321);
+
+    // Timing-only laps release their slots. Extended-only coverage is enough
+    // to retain a trace, even when no pedals arrived for that frame.
+    r.reset();r.accept(session(),0);
+    for(unsigned lap=1;lap<=79;++lap) r.accept(meta(lap,0,lap,lap*.01f),lap*.01);
+    r.accept(meta(79,32,80,.8f),.8);
+    r.accept(motion_extra(80,.8f),.8);
+    r.accept(meta(80,0,81,.81f),.81);
+    assert(r.driver(0).size()==79);
+    for(unsigned i=0;i<78;++i) assert(r.driver(0).lap(i).limited);
+    const auto& recorded=r.driver(0).lap(78);
+    assert(!recorded.limited && r.driver(0).extra(recorded,12,2));
+    plot.build(r.driver(0),78,-1,33,53,12,13);
+    assert(plot.series[0][0].valid);
     std::cout<<"Multi-driver isolation, privacy, rewind and 22-car/200-lap checks passed; "
              <<MultiRecorder::storage_bytes()+sizeof(MultiRecorder)<<" bytes total\n";
 }

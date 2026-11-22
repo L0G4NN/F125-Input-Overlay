@@ -1,12 +1,12 @@
 # Installation and user guide
 
-F1 25 Input Overlay is an experimental Windows x64 addon for offline single-player F1 25. The current source version is 0.5.0. Actual Swofty import and in-game behaviour remain unverified.
+F1 25 Input Overlay is an experimental Windows x64 addon for offline single-player F1 25. The current source version is 0.5.1. Actual Swofty import and in-game behaviour remain unverified.
 
 ## Download and install
 
 1. Close F1 25.
 2. Use Swofty Launcher 1.3.7 or newer and permit its experimental overlay feature. Lap review additionally requires a Swofty core with overlay input v3.
-3. Check [Releases](https://github.com/L0G4NN/F125-Input-Overlay/releases) for a compiled `.swoftyaddon`. For version 0.5.0, the package name is `F125-Input-Overlay-0.5.0.swoftyaddon`. Use the version supplied with your chosen release. GitHub's **Source code** archives do not contain the compiled addon. If no compiled package is available, see [Development](DEVELOPMENT.md) to build one.
+3. Check [Releases](https://github.com/L0G4NN/F125-Input-Overlay/releases) for a compiled `.swoftyaddon`. For version 0.5.1, the package name is `F125-Input-Overlay-0.5.1.swoftyaddon`. Use the version supplied with your chosen release. GitHub's **Source code** archives do not contain the compiled addon. If no compiled package is available, see [Development](DEVELOPMENT.md) to build one.
 4. Import the `.swoftyaddon` from Swofty's **Addons** page or drag it onto the launcher window. Leave it archived.
 5. Enable **F1 25 Input Overlay** in your offline profile and launch the game through Swofty.
 
