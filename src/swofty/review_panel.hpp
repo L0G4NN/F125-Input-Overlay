@@ -30,9 +30,14 @@ public:
         if(key(in,hotkey)) {
             if(open_) { close(ov); return; }
             int result=ov->focus(1);
-            if(result!=SWOFTY_ASSET_OK) { ov->focus(0); return; }
+            if(result!=SWOFTY_ASSET_OK) { ov->focus(0); return; } // LATE can still grant ownership.
             open_=true;
-            if(x_<0 && r.driver(xd_).size()) x_=int(r.driver(xd_).size()-1);
+            if(x_<0) {
+                const auto& driver=r.driver(xd_);
+                for(int i=int(driver.size())-1;i>=0;--i) {
+                    if(!driver.lap(i).limited) { x_=i; break; }
+                }
+            }
             return; // Wait for our own focused snapshot before interacting.
         }
         if(!open_) return;
@@ -141,7 +146,9 @@ public:
         char selection[160];
         unsigned xn=x_>=0 && std::size_t(x_)<rx.size()?rx.lap(std::size_t(x_)).number:0;
         unsigned yn=y_>=0 && std::size_t(y_)<ry.size()?ry.lap(std::size_t(y_)).number:0;
-        std::snprintf(selection,sizeof selection,"X: %.16s / lap %u",r.driver_name(xd_),xn);text(1200,52,selection,Theme::x);
+        if(xn) std::snprintf(selection,sizeof selection,"X: %.16s / lap %u",r.driver_name(xd_),xn);
+        else std::snprintf(selection,sizeof selection,"X: %.16s / no lap",r.driver_name(xd_));
+        text(1200,52,selection,Theme::x);
         if(yn) std::snprintf(selection,sizeof selection,"Y: %.16s / lap %u",r.driver_name(yd_),yn);
         else std::snprintf(selection,sizeof selection,"Y: %.16s / no lap",r.driver_name(yd_));
         text(1200,76,selection,Theme::y);
@@ -182,9 +189,9 @@ public:
             view_begin_=std::clamp(drag_begin_-(mx-drag_x_)/gw*span,0.f,std::max(0.f,r.length()-span));
             view_end_=view_begin_+span; dirty_=true;
         }
-        if(dirty_ || cache_x_!=x_ || cache_y_!=y_ || cache_count_!=rx.size()+ry.size() || cache_xd_!=xd_ || cache_yd_!=yd_) {
+        if(dirty_ || cache_x_!=x_ || cache_y_!=y_ || cache_xd_!=xd_ || cache_yd_!=yd_) {
             plot_.build(rx,x_,ry,y_,view_begin_,view_end_,channel0,channel1); dirty_=false;
-            cache_x_=x_; cache_y_=y_; cache_count_=rx.size()+ry.size();cache_xd_=xd_;cache_yd_=yd_;
+            cache_x_=x_; cache_y_=y_;cache_xd_=xd_;cache_yd_=yd_;
         }
         for(float top:{gy,gy2}) rect(gx-16,top-30,gw+32,gh+56,Theme::surface);
         for(unsigned s=0;s<4;++s) {
@@ -260,12 +267,12 @@ public:
                 const auto& selected=which?ry:rx;
                 int sel=which?y_:x_;
                 if(page_==0) {
-                    const Bin* b=sel>=0 && std::size_t(sel)<selected.size()?selected.bin(selected.lap(std::size_t(sel)),bi):nullptr;
+                    const auto b=sel>=0 && std::size_t(sel)<selected.size()?selected.bin(selected.lap(std::size_t(sel)),bi):std::nullopt;
                     if(b) std::snprintf(info,sizeof info,"%c @ %.0f m: throttle %.0f-%.0f%%  brake %.0f-%.0f%%",which?'Y':'X',d,b->throttle_min*100,b->throttle_max*100,b->brake_min*100,b->brake_max*100);
                     else std::snprintf(info,sizeof info,"%c @ %.0f m: -- (no coverage)",which?'Y':'X',d);
                 } else {
-                    auto* a=sel>=0 && std::size_t(sel)<selected.size()?selected.extra(selected.lap(std::size_t(sel)),unsigned(channel0),unsigned(d/16)):nullptr;
-                    auto* b=sel>=0 && std::size_t(sel)<selected.size()?selected.extra(selected.lap(std::size_t(sel)),unsigned(channel1),unsigned(d/16)):nullptr;
+                    const auto a=sel>=0 && std::size_t(sel)<selected.size()?selected.extra(selected.lap(std::size_t(sel)),unsigned(channel0),unsigned(d/16)):std::nullopt;
+                    const auto b=sel>=0 && std::size_t(sel)<selected.size()?selected.extra(selected.lap(std::size_t(sel)),unsigned(channel1),unsigned(d/16)):std::nullopt;
                     char av[48]="--",bv[48]="--";
                     if(a) std::snprintf(av,sizeof av,"%.4f to %.4f",a->lo,a->hi);
                     if(b) std::snprintf(bv,sizeof bv,"%.4f to %.4f",b->lo,b->hi);
@@ -299,7 +306,6 @@ private:
     Plot plot_{};
     unsigned generation_{},xd_{},yd_{},cache_xd_{},cache_yd_{};
     bool browse_y_{};
-    std::size_t cache_count_{};
     int x_{-1},y_{-1},cache_x_{-2},cache_y_{-2},scroll_{};
     float view_begin_{},view_end_{},drag_x_{},drag_begin_{};
     bool open_{},dragging_{},dirty_{true},split_{true};

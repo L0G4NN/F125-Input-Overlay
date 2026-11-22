@@ -7,13 +7,17 @@
 
 namespace input_trace::review {
 constexpr std::size_t bins_per_lap=8192, trace_limit=128, lap_limit=1024;
-struct Bin {
+struct PedalExtrema {
     float throttle_min, throttle_max, brake_min, brake_max;
-    // link: bit 0 invalidates a mixed/discontinuous bin; upper bits hold
-    // the preceding connected bin index + 1 (zero means no connection).
-    std::uint32_t stamp, broken;
+    void include(PedalExtrema sample) {
+        throttle_min=std::min(throttle_min,sample.throttle_min);
+        throttle_max=std::max(throttle_max,sample.throttle_max);
+        brake_min=std::min(brake_min,sample.brake_min);
+        brake_max=std::max(brake_max,sample.brake_max);
+    }
 };
-static_assert(sizeof(Bin)==24);
+using PedalBlock = BinBlock<PedalExtrema>;
+static_assert(sizeof(PedalBlock)==584 && 2*bins_per_lap<=UINT16_MAX);
 struct Lap {
     unsigned number{}, time_ms{}, slot{}, stamp{};
     bool invalid{}, partial{true}, limited{}, out{}, in{};
@@ -31,16 +35,16 @@ class Recorder {
 public:
     bool initialize() {
         if(bins_) return true;
-        if(!owned_) owned_.reset(new(std::nothrow) Bin[trace_limit*bins_per_lap]{});
-        if(!owned_extra_) owned_extra_.reset(new(std::nothrow) ExtraBin[trace_limit*extra_channels*extra_bins]{});
+        if(!owned_) owned_.reset(new(std::nothrow) PedalBlock[trace_limit*block_count(bins_per_lap)]{});
+        if(!owned_extra_) owned_extra_.reset(new(std::nothrow) ExtraBlock[trace_limit*extra_channels*block_count(extra_bins)]{});
         if(!owned_ || !owned_extra_) return false;
         attach(owned_.get(),owned_extra_.get(),owned_stamp_,trace_limit,trace_limit,
                extra_channels,bins_per_lap,extra_bins);
         return true;
     }
-    void attach(Bin* bins,ExtraBin* extra,unsigned& stamp,unsigned slots,unsigned retained,
+    void attach(PedalBlock* bins,ExtraBlock* extra,unsigned& stamp,unsigned slots,unsigned retained,
                 unsigned channels,unsigned pedal_bins,unsigned extended_bins) {
-        bins_=bins;stamp_=&stamp;slots_=slots;retention_=retained;distance_bins_=pedal_bins;
+        bins_=bins;stamp_=&stamp;slots_=slots;retention_=retained;distance_bins_=pedal_bins;blocks_per_slot_=block_count(pedal_bins);
         extras_.attach(extra,slots,channels,extended_bins);
         free_count_=slots_;
         for(unsigned i=0;i<slots_;++i) free_slots_[i]=slots_-1-i;
@@ -54,10 +58,9 @@ public:
     void set_recording(bool on) { if(recording_!=on) { recording_=on; release_current(); active_=false; pairs_={}; extras_.gap(); } }
     std::size_t size() const { return rewind_pending_?0:count_; }
     const Lap& lap(std::size_t i) const { return laps_[i]; }
-    const Bin* bin(const Lap& l,std::size_t i) const {
-        if(!bins_ || l.limited || l.slot>=slots_ || i>=distance_bins_) return nullptr;
-        const auto& b=at(l.slot,i);
-        return b.stamp==l.stamp && !(b.broken&1) ? &b : nullptr;
+    std::optional<PedalBlock::Sample> bin(const Lap& l,std::size_t i) const {
+        if(!bins_ || l.limited || l.slot>=slots_ || i>=distance_bins_) return std::nullopt;
+        return slot_blocks(l.slot)[i/block_width].read(l.stamp,i);
     }
     unsigned driver_count() const {return 1;}
     unsigned driver_index(unsigned) const {return 0;}
@@ -76,12 +79,12 @@ public:
     bool metadata_limit() const { return count_==lap_limit; }
     unsigned detailed_lap_capacity() const { return retention_; }
     static constexpr std::size_t storage_bytes() {
-        return trace_limit*(bins_per_lap*sizeof(Bin)+extra_channels*extra_bins*sizeof(ExtraBin));
+        return trace_limit*(block_count(bins_per_lap)*sizeof(PedalBlock)+extra_channels*block_count(extra_bins)*sizeof(ExtraBlock));
     }
     float sector(unsigned i) const { return i<2?sectors_[i]:0; }
     bool steering(double now,float& degrees) const { return extras_.steering(now,degrees); }
-    const ExtraBin* extra(const Lap& lap,unsigned channel,unsigned index) const {
-        return lap.limited?nullptr:extras_.bin(lap.slot,lap.stamp,channel,index);
+    std::optional<ExtraBlock::Sample> extra(const Lap& lap,unsigned channel,unsigned index) const {
+        return lap.limited?std::nullopt:extras_.bin(lap.slot,lap.stamp,channel,index);
     }
     // A valid rewind from another car invalidates this car's future too. Hide
     // its history until its own valid lap metadata locates the retained prefix.
@@ -211,8 +214,7 @@ private:
         current_.last=m.distance;
         if(!current_.limited && bins_) {
             const auto first=std::size_t(std::clamp(m.distance/2.f,0.f,float(distance_bins_)));
-            for(auto i=first;i<distance_bins_;++i)
-                if(at(current_.slot,i).stamp==current_.stamp) at(current_.slot,i)={};
+            PedalBlock::truncate(slot_blocks(current_.slot),blocks_per_slot_,current_.stamp,first);
             extras_.truncate(current_.slot,current_.stamp,m.distance);
         }
     }
@@ -240,22 +242,15 @@ private:
         bool interrupted=broken_ || (have_sample_ && (p.time-last_time_>.1 || p.time<=last_time_ || m.distance-current_.last>100));
         if(interrupted && have_sample_) current_.partial=true;
         if(!current_.limited) {
-            auto& b=at(current_.slot,i);
-            if(b.stamp!=current_.stamp) {
-                const auto previous=std::size_t(std::max(0.f,current_.last)/2);
-                const auto link=!interrupted && have_sample_ && previous<i ? std::uint32_t((previous+1)<<1) : 0u;
-                b={p.throttle,p.throttle,p.brake,p.brake,current_.stamp,link};
-            }
-            else {
-                if(interrupted) b.broken|=1;
-                b.throttle_min=std::min(b.throttle_min,p.throttle); b.throttle_max=std::max(b.throttle_max,p.throttle);
-                b.brake_min=std::min(b.brake_min,p.brake); b.brake_max=std::max(b.brake_max,p.brake);
-            }
+            const auto previous=std::size_t(std::max(0.f,current_.last)/2);
+            const unsigned link=!interrupted && have_sample_ && previous<i ? unsigned((previous+1)<<1) : 0;
+            auto& block=slot_blocks(current_.slot)[i/block_width];
+            block.record(current_.stamp,i,{p.throttle,p.throttle,p.brake,p.brake},link,interrupted);
         }
         current_.last=m.distance; last_time_=p.time; have_sample_=true; broken_=false;
     }
-    Bin& at(unsigned slot,std::size_t index) const {
-        return bins_[std::size_t(slot)*distance_bins_+index];
+    PedalBlock* slot_blocks(unsigned slot) const {
+        return bins_+slot*blocks_per_slot_;
     }
     void release(const Lap& lap) {
         if(!lap.limited) free_slots_[free_count_++]=lap.slot;
@@ -270,9 +265,10 @@ private:
         release_current();
         for(std::size_t i=0;i<count_;++i) release(laps_[i]);
     }
-    std::unique_ptr<Bin[]> owned_;
-    std::unique_ptr<ExtraBin[]> owned_extra_;
-    Bin* bins_{};
+    std::unique_ptr<PedalBlock[]> owned_;
+    std::unique_ptr<ExtraBlock[]> owned_extra_;
+    PedalBlock* bins_{};
+    std::size_t blocks_per_slot_{};
     unsigned* stamp_{};
     unsigned owned_stamp_{},slots_{},retention_{},distance_bins_{},retained_{},free_count_{};
     std::array<unsigned,trace_limit> free_slots_{};

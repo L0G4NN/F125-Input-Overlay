@@ -72,6 +72,7 @@ void paint(SwoftyPaint* p,void*) {
     bool on=enabled.load();
     if(!on) {
         if(sock!=INVALID_SOCKET) { closesocket(sock); sock=INVALID_SOCKET; WSACleanup(); }
+        if(!was_enabled) return;
         attempted=false; socket_error=false; feed.clear();
         recorder.set_recording(false); recorder.gap();
         if(review_supported) review_panel.close(api->overlay);

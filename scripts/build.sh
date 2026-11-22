@@ -8,8 +8,9 @@ mkdir -p build/native
     -Isrc -Ithird_party/swofty -shared -static -s src/swofty/plugin.cpp -lws2_32 \
     -o build/native/input_overlay.dll
 
-cat > build/BUILD-INFO.txt <<'INFO'
-F1 25 Input Overlay 0.4.0-preview.2 experimental
+version=$(python3 -c "import json; print(json.load(open('addon/swofty.json'))['version'])")
+cat > build/BUILD-INFO.txt <<INFO
+F1 25 Input Overlay $version experimental
 Target: x86_64-windows-gnu
 Compiler requirement: Zig 0.14.1, C++20, -O2
 SDK: SwoftyLauncher 5d538d9a0afd6f90a417118807d86a5beb9e9c71

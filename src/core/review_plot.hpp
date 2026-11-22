@@ -30,6 +30,8 @@ struct Plot {
                 float d=float(i)*spacing;
                 if(d<begin || d>end) continue;
                 auto col=std::min(unsigned((d-begin)/(end-begin)*columns),columns-1);
+                const auto pedal=ext?std::nullopt:r.bin(lap,i);
+                if(!ext && !pedal) continue;
                 for(unsigned channel=0;channel<2;++channel) {
                     float lo,hi;unsigned link;
                     if(ext) {
@@ -37,8 +39,9 @@ struct Plot {
                         if(!b) continue;
                         lo=b->lo;hi=b->hi;link=b->link;
                     } else {
-                        auto b=r.bin(lap,i);if(!b) continue;
-                        lo=channel?b->brake_min:b->throttle_min;hi=channel?b->brake_max:b->throttle_max;link=b->broken;
+                        lo=channel?pedal->brake_min:pedal->throttle_min;
+                        hi=channel?pedal->brake_max:pedal->throttle_max;
+                        link=pedal->link;
                     }
                     bool joined=previous_bin[channel]>=0 && (link>>1)==unsigned(previous_bin[channel]+1);
                     auto& c=series[selection*2+channel][col];
