@@ -13,7 +13,7 @@ inline Bytes participants(unsigned frame=1,float time=.01f,unsigned count=3,unsi
     return p;
 }
 inline void car_meta(Bytes& p,unsigned car,unsigned lap,float distance,unsigned ms=90000,unsigned status=1) {
-    const unsigned o=29+57*car;put(p,o,ms);fp(p,o+20,distance);p[o+33]=lap;p[o+44]=status;
+    const unsigned o=29+57*car;put(p,o,ms);fp(p,o+20,distance);p[o+33]=lap;p[o+44]=status;p[o+45]=2;
 }
 inline void car_pedals(Bytes& p,unsigned car,float throttle,float brake=.25f) {
     const unsigned o=29+60*car;fp(p,o+2,throttle);fp(p,o+10,brake);p[o]=200-car;p[o+15]=5;

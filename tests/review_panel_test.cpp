@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <source_location>
 using namespace input_trace::review;
 namespace {
 constexpr int default_hotkey=117; // Win32 VK_F6
@@ -17,10 +18,18 @@ SwoftyInput input{}; int sectors=0; int glyphs=0; bool amber=false,cyan=false; i
 int read_input(const SwoftyPaint*,SwoftyInput* out) { ++input_calls; *out=input; out->focused=focused; return SWOFTY_ASSET_OK; }
 int focus(int on) { ++focus_calls; if(focus_result==SWOFTY_ASSET_OK || focus_result==SWOFTY_ASSET_LATE || !on) focused=on!=0; return focus_result; }
 void size(const SwoftyPaint*,float* w,float* h) {*w=1920;*h=1080;}
-void rect(SwoftyPaint*,float,float,float,float,uint32_t) {++rects;}
+void rect(SwoftyPaint*,float,float,float w,float h,uint32_t colour) {
+    ++rects;
+    if(w==2 && h==2) {
+        amber|=colour==Theme::y;
+        cyan|=colour==Theme::x;
+    }
+}
 void line(SwoftyPaint*,float x,float y,float a,float b,float,uint32_t colour) {if(colour==0xffffff80) ++sectors;if(colour==0xffbd59ff) amber=true;if(colour==Theme::x) cyan=true;if(!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(a)||!std::isfinite(b))std::abort();++lines;}
 void text(SwoftyPaint*,float,float,float,uint32_t,const char* str) {if(std::strncmp(str,"X: ",3)==0)std::snprintf(x_summary,sizeof x_summary,"%s",str);++texts;glyphs+=int(std::strlen(str));if(std::strstr(str,"22  Driver 22"))last_driver_visible=true;if(std::strstr(str,"Y: Driver 22 / no lap"))last_driver_selected=true;if(std::strstr(str,"Y: Driver 2 / lap 1"))opponent_selected=true;if(std::strstr(str,"Player-only"))unavailable_hint=true;if(std::strstr(str," / Esc  Close review"))std::snprintf(rendered_key_hint,sizeof rendered_key_hint,"%s",str);}
-void check(bool ok) {if(!ok)std::abort();}
+void check(bool ok,std::source_location where=std::source_location::current()) {
+    if(!ok) {std::cerr << where.file_name() << ":" << where.line() << "\n";std::abort();}
+}
 }
 int main() {
     Recorder r;check(r.initialize());r.accept(fixture::session(),0);
