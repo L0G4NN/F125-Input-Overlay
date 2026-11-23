@@ -91,7 +91,7 @@ public:
         identity_known_={};capacity_=0;active_storage_=0;
         ++generation_;
     }
-    void gap() {for(auto& r:cars_) r.gap();}
+    void transport_gap() {for(auto& r:cars_) r.transport_gap();}
     void set_recording(bool on) {for(auto& r:cars_) r.set_recording(on);}
     bool available() const {return bool(pool_) && bool(extra_);}
     bool recording() const {return local().recording();}
@@ -143,12 +143,13 @@ public:
             if(!decode_common(p,h,1,753)) return;
             const unsigned len=unsigned(p[33])|unsigned(p[34])<<8;
             if(len<100 || len>bins_per_lap*2 || p[36]>127 || p[44]!=0 || p[154]!=0) return;
-            for(auto uid:retired_) if(uid && uid==h.session) return;
+            if(retired_.contains(h.session)) return;
             if(session_ && h.session==uid_ && !newer(h.frame,session_frame_)) return;
-            if(session_ && (h.session!=uid_ || h.player!=player_ || p[36]!=track_ || len!=length_)) {
-                if(h.session!=uid_) retired_[retire_pos_++%retired_.size()]=uid_;
+            // Keep the previous UID across a lifecycle reset until the next
+            // Session identifies whether this is a restart or a different race.
+            if(uid_ && h.session!=*uid_) retired_.add(*uid_);
+            if(session_ && (h.session!=uid_ || h.player!=player_ || p[36]!=track_ || len!=length_))
                 reset();
-            }
             if(!session_) {
                 first_session_frame_=h.frame;
                 configure_history(len,h.player);
@@ -171,7 +172,7 @@ public:
                 // Never join two occupants of the same car slot or retain private ERS.
                 const bool returning=next[i].active && !present_[i];
                 if(next[i].active && roster_[i].active &&
-                   (!next[i].same_identity(roster_[i]) || next[i].public_!=roster_[i].public_)) {
+                   (!next[i].same_identity(roster_[i]) || (i!=player_ && next[i].public_!=roster_[i].public_))) {
                     cars_[i].reset();cars_[i].accept(session_packet_,wall,i);changed=true;identity_known_[i]=true;identity_frame_[i]=h.frame;
                 }
                 if(i!=player_ && present_[i] && !next[i].active) cars_[i].gap();
@@ -197,6 +198,7 @@ public:
                 dispatch(p[29],p,wall);
             return;
         }
+        if(p[6]!=2 && p[6]!=6 && p[6]!=7 && p[6]!=13) return;
         const bool fresh=roster_seen_ && wall>=roster_wall_ && wall-roster_wall_<=10;
         if(!fresh && opponents_fresh_) for(unsigned i=0;i<22;++i) if(i!=player_) cars_[i].gap();
         opponents_fresh_=fresh;
@@ -243,9 +245,8 @@ private:
     std::array<bool,22> identity_known_{},present_{};
     std::array<Participant,22> roster_{};
     std::array<unsigned char,753> session_packet_{};
-    std::array<std::uint64_t,64> retired_{};
-    std::size_t retire_pos_{};
-    std::uint64_t uid_{};
+    RetiredSessions retired_;
+    std::optional<std::uint64_t> uid_;
     std::uint32_t session_frame_{},first_session_frame_{},roster_frame_{};
     std::size_t active_storage_{};
     unsigned player_{},generation_{},track_{},length_{},stamp_{},capacity_{};

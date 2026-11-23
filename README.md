@@ -11,7 +11,7 @@ The display uses game-reported inputs, not pedal force or raw hardware readings.
 
 ## Preview
 
-The live HUD image shows the earlier layout. The lap-review preview uses synthetic data from an earlier build. Its footer shows the previous F8 shortcut and 70-lap quota.
+The live HUD image shows an earlier in-game layout. The F6 preview shows the current panel drawing two synthetic laps in a test host with a substitute font.
 
 ### Live inputs
 
@@ -19,7 +19,7 @@ The live HUD image shows the earlier layout. The lap-review preview uses synthet
 
 ### F6 lap comparison
 
-![F6 lap comparison with the current theme and synthetic laps](docs/images/F8-themed-preview.svg)
+![F6 lap comparison with the current theme and synthetic laps](docs/images/F6-lap-review.png)
 
 ## Install and start driving
 
@@ -65,7 +65,7 @@ Recorded laps stay in memory only. Exiting the game or a session reset clears th
 
 - **No panel while driving:** check the addon is enabled, the overlay feature is permitted, and UDP matches the table above. Missing or stale telemetry hides the panel by default.
 - **Waiting for UDP:** check format **2025**, address `127.0.0.1` and port `20777`. Close other apps listening on that port and restart the game.
-- **F6 does nothing:** pause from an active session or return to the garage, keep the game window active. Check recording and the master toggle are on. Older cores can support the live HUD without lap review.
+- **F6 does nothing:** pause from an active session or return to the garage, keep the game window active. Check the master toggle and configured key. Older cores can support the live HUD without lap review.
 
 See [installation, settings and troubleshooting](docs/INSTALL.md), or [report a problem](https://github.com/L0G4NN/F125-Input-Overlay/issues).
 

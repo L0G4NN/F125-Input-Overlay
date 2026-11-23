@@ -208,6 +208,25 @@ int main() {
     assert(!recorded.limited && r.driver(0).extra(recorded,12,2));
     plot.build(r.driver(0),78,-1,33,53,12,13);
     assert(plot.series[0][0].valid);
+    // Changing local sharing permissions cannot invalidate local recordings.
+    r.reset();r.accept(session(),0);r.accept(participants(1,.01f),.01);
+    pair_grid(r,2,.02f,1,0);pair_grid(r,3,.03f,2,0);
+    roster=participants(4,.04f);roster[30+39]=0;r.accept(roster,.04);
+    assert(r.driver(0).size()==1 && r.driver(0).bin(r.driver(0).lap(0),0));
+    r.transport_gap();
+    assert(!r.garage(.04) && !r.on_track(.04));
+    r.accept(meta(2,64,5,.05f,0),.05);
+    assert(r.garage(.05));
+
+    // A lifecycle reset permits a same-UID restart, but once the new UID is
+    // established a delayed Session datagram cannot erase that race.
+    r.reset();r.accept(session(1,0,1000,0),0);r.reset();
+    r.accept(session(1,0,1000,5678),0);
+    m=meta(1,0,2,.02f);put(m,7,5678);r.accept(m,.02);
+    m=meta(2,0,3,.03f);put(m,7,5678);r.accept(m,.03);
+    r.accept(session(80,1,1000,0),.04);
+    assert(r.driver(0).size()==1 && r.on_track(.04));
+
     std::cout<<"Multi-driver isolation, privacy, rewind and 22-car/200-lap checks passed; "
              <<MultiRecorder::storage_bytes()+sizeof(MultiRecorder)<<" bytes total\n";
 }

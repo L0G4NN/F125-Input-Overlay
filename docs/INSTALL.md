@@ -6,7 +6,7 @@ F1 25 Input Overlay is an experimental Windows x64 addon for offline single-play
 
 1. Close F1 25.
 2. Use Swofty Launcher 1.3.7 or newer and permit its experimental overlay feature. Lap review additionally requires a Swofty core with overlay input v3.
-3. Check [Releases](https://github.com/L0G4NN/F125-Input-Overlay/releases) for a compiled `.swoftyaddon`. For version 0.5.1, the package name is `F125-Input-Overlay-0.5.1.swoftyaddon`. Use the version supplied with your chosen release. GitHub's **Source code** archives do not contain the compiled addon. If no compiled package is available, see [Development](DEVELOPMENT.md) to build one.
+3. Check [Releases](https://github.com/L0G4NN/F125-Input-Overlay/releases) for a compiled `.swoftyaddon`. For version 0.5.1, the package name is `F125-Input-Overlay-0.5.1.swoftyaddon`. Use the version supplied with your chosen release. GitHub's **Source code** archives do not contain the compiled addon. If no compiled package is available, see [Development](https://github.com/L0G4NN/F125-Input-Overlay/blob/dev/docs/DEVELOPMENT.md) to build one.
 4. Import the `.swoftyaddon` from Swofty's **Addons** page or drag it onto the launcher window. Leave it archived.
 5. Enable **F1 25 Input Overlay** in your offline profile and launch the game through Swofty.
 
@@ -63,15 +63,16 @@ The full live panel stays inside the screen. Mouse dragging to reposition it is 
 | Drag on graphs | Pan |
 | Reset view | Fit the full lap |
 | Clear comparison | Remove Y |
-| Escape, Close or configured review key | Close review and release focus |
+| Escape | Dismiss the driver list first, otherwise close review |
+| Close or configured review key | Close review and release focus |
 
-Graphs use distance in metres. Cursor values show min/max inputs within a 2 m bin. Gaps indicate missing or unmatched data and are not smoothed over.
+Graphs use distance in metres. Cursor values show recorded extrema within a 2 m pedal bin or a 16 m extended-channel bin. Gaps indicate missing or unmatched data and are not smoothed over.
 
 Lap labels include **INVALID**, **PARTIAL**, **OUT LAP**, **IN LAP** and **NO TRACE**. Partial or incomplete laps may not support a full comparison. **NO TRACE** means timing metadata is retained without detailed pedal data. A final lap can have an unknown time if no authoritative timing transition arrived.
 
 The live HUD hides while review is open. Review closes when resuming on track, Alt-Tab, session replacement, master disable or another addon taking focus. Close review before naming a setup or operating flashback controls so the game receives keyboard and mouse input.
 
-Review focus does not block controllers or wheels, and DirectInput wheels may not appear in its controller snapshot. These restrictions mitigate input capture problems; the reported stuck-throttle behaviour still needs in-game verification. The addon does not write vehicle inputs. See [setup visibility notes](SETUP_NAMING.md) and [lap-review validation](LAP_REVIEW.md).
+Review focus does not block controllers or wheels, and DirectInput wheels may not appear in its controller snapshot. These restrictions mitigate input capture problems; the reported stuck-throttle behaviour still needs in-game verification. The addon does not write vehicle inputs. See [setup visibility notes](https://github.com/L0G4NN/F125-Input-Overlay/blob/dev/docs/SETUP_NAMING.md) and [multi-driver review](MULTI_DRIVER_REVIEW.md).
 
 ## Recording limits and data
 
@@ -87,9 +88,9 @@ Review focus does not block controllers or wheels, and DirectInput wheels may no
 | --- | --- |
 | No panel while driving | Check the addon is enabled in the profile used to launch the game, the master toggle is on and the experimental overlay feature is permitted. Check all UDP settings above. Restart after changing enabled addons. |
 | No panel in garage/menus | Expected with **Hide live HUD in garage and menus** on. Leave the garage for the live graph; use F6 for garage review. |
-| Waiting for UDP 2025 | Check address, port, format and UDP Telemetry above. There is no native-input fallback. Temporarily turn off **Hide live HUD in garage and menus** to see status messages. |
+| Waiting for UDP 2025 | Check address, port, format and UDP Telemetry above. There is no native-input fallback. The waiting label is hidden while paused or in a known garage. |
 | UDP port 20777 unavailable | Close other apps listening on that port and restart F1 25. The port cannot be changed in this version. |
-| F6 does nothing | Pause the game or return to the garage with fresh UDP lap data. Keep the game window active. Check recording, the master toggle and configured key. Older cores without overlay input v3 cannot open review. |
+| F6 does nothing | Pause the game or return to the garage with fresh UDP lap data. Keep the game window active. Check the master toggle and configured key. Recording can be off when browsing retained laps. Older cores without overlay input v3 cannot open review. |
 | No completed laps | Enable recording and UDP before driving, then complete a lap. Session resets clear recordings; rewinds remove only the superseded section. |
 | Frozen trace or gaps | Pause events freeze the trace. Missing data is unavailable, not zero. Queued packets are discarded after interruptions, which can briefly show waiting. |
 | History disappears after flashback/restart | Session changes clear history; rewinds remove the affected suffix and later laps. |
@@ -105,4 +106,4 @@ Exit F1 25, then disable the addon in your Swofty profile. Use launcher's addon 
 
 Windows AMD64 compilation, addon exports, system DLL imports, package structure and synthetic packet/trace checks are documented. These checks do not establish successful installation or in-game compatibility.
 
-Actual import/load, keyboard/mouse/controller/wheel behaviour, pause/flashback handling, setup naming, race finalization, settings persistence, coexistence and performance still need game testing. Linux/Proton, VR, HDR/frame generation, multiplayer, split-screen and the 2026 format/Season Pack are untested or outside the initial target. See [conformance](CONFORMANCE.md) and the [test plan](TEST_PLAN.md) for details.
+Actual import/load, keyboard/mouse/controller/wheel behaviour, pause/flashback handling, setup naming, race finalization, settings persistence, coexistence and performance still need game testing. Linux/Proton, VR, HDR/frame generation, multiplayer, split-screen and the 2026 format/Season Pack are untested or outside the initial target. See [conformance](https://github.com/L0G4NN/F125-Input-Overlay/blob/dev/docs/CONFORMANCE.md) and the [test plan](https://github.com/L0G4NN/F125-Input-Overlay/blob/dev/docs/TEST_PLAN.md) for details.

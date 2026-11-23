@@ -7,6 +7,9 @@ import struct
 import zipfile
 from pathlib import Path
 
+if not __debug__:
+    raise SystemExit("Package validation requires Python without -O.")
+
 root = Path(__file__).resolve().parent.parent
 manifest = json.loads((root / 'addon/swofty.json').read_text())
 assert manifest['schema_version'] == 1

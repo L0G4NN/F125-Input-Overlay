@@ -11,6 +11,7 @@ int main() {
     gate.exhausted(); assert(!gate.accept()); // receive budget hit
     gate.drained(); assert(gate.begin(3.3,true,false)); // session reset
     gate.drained(); assert(gate.begin(3.4,false,true));
-    gate.drained(); assert(gate.begin(3.5,false,false)); // resume barrier
+    gate.drained(); assert(!gate.begin(3.45,false,true)); // uninterrupted pause
+    assert(gate.begin(3.5,false,false)); // resume barrier
     gate.drained(); assert(!gate.begin(3.6,false,false));
 }

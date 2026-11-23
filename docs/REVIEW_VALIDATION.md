@@ -1,4 +1,6 @@
-# Experimental lap review validation
+# Historical player-only review validation
+
+Current recording limits and validation are in [Multi-driver review](MULTI_DRIVER_REVIEW.md).
 
 15 November 2026. Local Linux development host, GCC 14 C++20 portable tests; Zig 0.14.1 Windows AMD64 cross-build. No F1 25, Windows socket runtime or GPU session was used. Synthetic packet fixtures are not captured game telemetry.
 
@@ -73,16 +75,3 @@ All regression tests and 300,000 deterministic mutated packet/state cases passed
 Fixed pool: 54,951,936 bytes; recorder metadata: 38,000 bytes on this host. The four-packet allocation benchmark observed zero new C++ allocations during ingestion and plot rebuilds at 0/78/128/200 completed laps. Four-packet ingestion averages were about 0.54/0.74/0.40/0.30 microseconds respectively on shared hardware; timings are illustrative, not a game performance guarantee.
 
 A development-only 128-lap profile using the pinned upstream portable draw-list produced 10,962–13,332 vertices across the five pages with X/Y, sectors and cursor. Synthetic page layouts were inspected with an approximate-font raster preview; actual Swofty font/D3D12 rendering remains unverified. Windows cross-compilation with Zig 0.14.1 and package validation passed. See EXTENDED_TELEMETRY.md for the real-game acceptance matrix and raw-unit limitations.
-
-## Paused review and rewind rollback (current)
-
-This supersedes earlier garage-only and whole-session rewind-reset policies. F6 is allowed in an unpaused fresh garage or a pause entered with fresh lap metadata; that context is latched because paused UDP can stop. Resume on track releases focus. Held controls and non-review navigation still release/refuse focus. Pause masks do not identify replay/flashback reliably: close F6 before flashback controls; the previous stuck-input report remains an in-game validation risk.
-
-A newer overall frame with backwards source time or lap number starts rollback. Recording waits for validated lap metadata, drops pending pairs and rejects older frames. Completed laps before the target survive; the target lap reopens with its retained prefix, and later laps are removed. Discard the entire boundary bin and suffix (2 m pedals, 16 m extended channels), not just extrema, to avoid mixing attempts. Missing target history starts partial. Rewritten laps are conservatively partial and retain conservative quality flags. Selections/cache generation resets. No allocation: rollback scans at most 1,024 lap records plus one pedal slot and 14 extended channel suffixes; normal recording cost and fixed pool size are unchanged.
-
-Validation for paused review/rollback: portable suite and targeted cross-lap/repeated/trace-cap rollback checks passed under ASan/UBSan; 300,000 mutated packet/state cases passed with float-cast checks. Zig 0.14.1 Windows build passed. These do not verify flashback control behaviour in F1 25.
-
-
-## Multi-driver review (current)
-
-[Multi-driver review](MULTI_DRIVER_REVIEW.md) supersedes the player-only recording and trace-count descriptions above. X/Y select independent drivers and completed laps. Each car has up to 78 detailed completed laps, one active trace and 1,024 timing entries. Track length determines the per-driver quota under the 192 MiB recorder budget. Garage access and the live HUD follow the local player. Review also opens while paused. Opponent slip/aero data and restricted ERS remain unavailable. See that document for controls, retention limits, packet offsets, rewind handling and validation evidence.

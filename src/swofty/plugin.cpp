@@ -74,7 +74,7 @@ void paint(SwoftyPaint* p,void*) {
         if(sock!=INVALID_SOCKET) { closesocket(sock); sock=INVALID_SOCKET; WSACleanup(); }
         if(!was_enabled) return;
         attempted=false; socket_error=false; feed.clear();
-        recorder.set_recording(false); recorder.gap();
+        recorder.set_recording(false); recorder.transport_gap();
         if(review_supported) review_panel.close(api->overlay);
         was_enabled=false; return;
     }
@@ -85,7 +85,7 @@ void paint(SwoftyPaint* p,void*) {
     const bool is_paused=pause_query?pause_query()!=0:paused.load();
     if(is_paused) feed.trace.pause(); else feed.trace.resume();
     const double now=double(GetTickCount64())/1000;
-    if(receive_gate.begin(now,reset,is_paused)) { recorder.gap(); if(!is_paused) feed.trace.unavailable(); }
+    if(receive_gate.begin(now,reset,is_paused)) { recorder.transport_gap(); if(!is_paused) feed.trace.unavailable(); }
     if(sock!=INVALID_SOCKET) {
         unsigned char packet[2048];
         bool drained=false;
@@ -94,9 +94,8 @@ void paint(SwoftyPaint* p,void*) {
             int got=recv(sock,reinterpret_cast<char*>(packet),sizeof packet,0);
             if(got==SOCKET_ERROR) {
                 const int error=WSAGetLastError();
-                if(error==WSAEMSGSIZE) { feed.trace.unavailable(); recorder.gap(); continue; }
+                if(error==WSAEMSGSIZE) { feed.trace.unavailable(); recorder.transport_gap(); continue; }
                 if(error==WSAEWOULDBLOCK) { receive_gate.drained(); drained=true; }
-                else { receive_gate.exhausted(); feed.trace.unavailable(); recorder.gap(); }
                 break;
             }
             const std::span<const unsigned char> bytes{packet,std::size_t(got)};
@@ -106,9 +105,8 @@ void paint(SwoftyPaint* p,void*) {
                 recorder.accept(bytes,now);
             }
         }
-        if(!drained) { receive_gate.exhausted(); feed.trace.unavailable(); recorder.gap(); }
+        if(!drained) { receive_gate.exhausted(); feed.trace.unavailable(); recorder.transport_gap(); }
     }
-    if(!on) return;
     feed.tick(now);
     float sw=0,sh=0; auto ov=api->overlay; ov->size(p,&sw,&sh);
     if(sw<1 || sh<1) { if(review_supported) review_panel.close(ov); return; }
@@ -136,10 +134,7 @@ void paint(SwoftyPaint* p,void*) {
     }
     ov->text(p,x+4*scale,gy,12*scale,0xffffffb0,"100");
     ov->text(p,x+12*scale,gy+gh-12*scale,12*scale,0xffffffb0,"0");
-    const char* status=socket_error?"UDP port 20777 unavailable":
-        is_paused?"Paused":feed.trace.state()==input_trace::State::live?"Throttle / Brake":
-        "Waiting for UDP 2025 :20777";
-    ov->text(p,x+8*scale,y+6*scale,14*scale,0xffffffff,status);
+    ov->text(p,x+8*scale,y+6*scale,14*scale,0xffffffff,"Throttle / Brake");
     float steering_angle=0;char steering_text[80];
     if(!is_paused && recorder.steering(now,steering_angle))
         std::snprintf(steering_text,sizeof steering_text,"Front-wheel angle: %+.1f deg",steering_angle);
@@ -175,7 +170,16 @@ void register_overlay(double,void*) {
     }
 }
 void* allocate_review_pages(std::size_t bytes) {
-    return VirtualAlloc(nullptr,bytes,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
+    auto* memory=VirtualAlloc(nullptr,bytes,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
+    if(!memory) return nullptr;
+    // Commit charge alone does not populate a working set. Take the initial
+    // demand-zero faults during addon load, before registering the paint callback.
+    SYSTEM_INFO system{};
+    GetSystemInfo(&system);
+    auto* pages=static_cast<volatile unsigned char*>(memory);
+    for(std::size_t offset=0;offset<bytes;offset+=system.dwPageSize)
+        pages[offset]=0;
+    return memory;
 }
 void release_review_pages(void* pages) { VirtualFree(pages,0,MEM_RELEASE); }
 void start() {

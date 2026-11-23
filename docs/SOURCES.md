@@ -53,11 +53,5 @@ Rechecked the official overlay reference (input/focus v3, virtual-key edges, con
 
 Runtime input/focus and pause-mask discovery follows the pinned SDK's `swofty/overlay.hpp` and `swofty/view.hpp` core-export feature checks. No SDK file modifications were needed. No tested game/core version is added until runtime testing is performed.
 
-## Extended telemetry in 0.3.0
 
-See [EXTENDED_TELEMETRY.md](EXTENDED_TELEMETRY.md) for the implemented sector markers, five F6 pages, per-wheel selector, front-wheel steering readout, verified EA offsets and unit limitations. The new total fixed pool is 52.4 MiB, superseding earlier pedal-only 24.2 MiB totals. Pedals retain 2 m bins; extra channels use 16 m extrema bins. Rendering is four 176-column arrays for the selected page only. Existing garage-only/unpaused focus safeguards and socket bounds remain in force. Game validation remains pending.
-
-
-## Multi-driver review (current)
-
-[Multi-driver review](MULTI_DRIVER_REVIEW.md) supersedes the player-only recording and trace-count descriptions above. X/Y select independent drivers and completed laps. Each car has up to 78 detailed completed laps, one active trace and 1,024 timing entries. Track length determines the per-driver quota under the 192 MiB recorder budget. Garage access and the live HUD follow the local player. Review also opens while paused. Opponent slip/aero data and restricted ERS remain unavailable. See that document for controls, retention limits, packet offsets, rewind handling and validation evidence.
+See [channel offsets](EXTENDED_TELEMETRY.md#verified-format-and-offsets) and the [participant packet](MULTI_DRIVER_REVIEW.md#verified-packet-addition).

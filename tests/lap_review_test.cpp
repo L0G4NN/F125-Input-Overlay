@@ -63,7 +63,7 @@ int main() {
         t.accept(pedals(8,.035f,.4f,0),.08); // rewind without distance yet
         t.accept(meta(2,100,8,.035f),.08);
         check(t.size()==1 && t.bin(t.lap(0),0),"earlier lap preserved");
-        check(t.bin(old,0) && !t.bin(old,50) && !t.bin(old,100),"prefix only; boundary discarded");
+        check(t.bin(old,0) && t.bin(old,50) && t.bin(old,50)->throttle_min==.4f && !t.bin(old,100),"prefix retained; boundary contains only the new sample");
         check(!t.extra(old,4,12),"extended future discarded");
         pair(t,2,100,9,.045f,false,.4f,0);pair(t,2,200,10,.055f,false,.5f,0);
         pair(t,3,0,11,.065f);
@@ -71,6 +71,40 @@ int main() {
         auto b=t.bin(t.lap(1),100);check(b && b->throttle_max==.5f && b->brake_max==0,"old peak absent");
         pair(t,2,0,12,.02f);check(t.size()==1,"second rewind removes completed suffix");
         pair(t,3,0,13,.03f);check(t.size()==2,"slot reusable after second rewind");
+    }
+    // Flashback telemetry can arrive before the Lap Data identifying its bin.
+    for(bool metadata_first : {true,false}) {
+        Recorder t;check(t.initialize(),"rewind order init");t.accept(session(),0);
+        pair(t,1,0,1,.01f);pair(t,1,160,2,.20f);pair(t,2,0,3,.30f);
+        t.accept(motion_extra(3,.30f),.30);
+        auto target=meta(1,64,4,.10f);
+        if(metadata_first) t.accept(target,.40);
+        t.accept(pedals(4,.10f,.42f,0),.40);
+        t.accept(motion_extra(4,.10f),.40);
+        if(!metadata_first) t.accept(target,.40);
+        t.accept(meta(2,0,5,.12f),.42);
+        auto at_target=t.bin(t.lap(0),32);
+        check(at_target && at_target->throttle_max==.42f && t.extra(t.lap(0),12,4),
+              "rewind target pedal and aero samples survive either order");
+    }
+    // A late pedal for the finished lap cannot clear the new lap's pending metadata.
+    {
+        Recorder t;check(t.initialize(),"late pedal init");t.accept(session(),0);
+        pair(t,1,0,1,.01f);t.accept(meta(1,990,2,.02f),.02);
+        t.accept(meta(2,0,3,.03f),.03);t.accept(pedals(2,.02f),.04);
+        t.accept(pedals(3,.03f),.05);t.accept(meta(3,0,4,.06f),.06);
+        check(t.size()==2 && t.bin(t.lap(1),0),"keep new lap start after late old pedal");
+    }
+    // A flashback while recording is off trims the abandoned result. A final
+    // classification cannot publish the old attempt as a newly recorded lap.
+    {
+        Recorder t;check(t.initialize(),"disabled rewind init");t.accept(session(),0);
+        pair(t,1,0,1,.01f);pair(t,2,0,2,.02f);pair(t,3,0,3,.03f);
+        t.set_recording(false);
+        t.accept(meta(2,0,4,.015f),.04);
+        auto final=header(8,1042,5,.05f);final[29]=1;final[31]=2;final[35]=3;
+        t.accept(final,.05);
+        check(t.size()==1 && t.lap(0).number==1,"disabled rollback keeps earlier completed laps only");
     }
     // Fill all 128 trace slots, then retain metadata without touching selected traces.
     r.reset(); r.accept(session(),0); std::uint32_t frame=1; float time=0;

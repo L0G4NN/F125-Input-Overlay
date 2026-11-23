@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Populate recorder backing pages during addon load to reduce first-touch stalls during longer races. This increases initial working set.
+
+- Protect race history from delayed Session packets after a reset and preserve local laps when the player changes telemetry sharing.
+- Keep same-frame samples on a flashback target and prevent late pedals for a finished lap from clearing the next lap’s first sample.
+- Require fresh garage evidence after a receive interruption. Avoid repeated recorder resets while a pause continues.
+- Use distinguishable small-value axis labels and whole-gear ticks. Remove superseded review and build instructions.
+
 ## 0.5.1 — Lap retention and race results
 
 - Ignore inactive car records before rewind detection. Preserve completed laps when a driver drops off the roster.
@@ -28,7 +37,7 @@
 - Participants decoder, 22-car/200-lap regressions, cross-driver panel tests, deterministic mutation test and allocation benchmark. Real-game validation remains pending.
 
 
-## Unreleased
+## Earlier lap-review changes
 
 - Restore F8 during pauses entered from a live session, keeping held-control checks.
 - Roll back only abandoned lap data after rewinds, preserving earlier laps and prefix samples across all channels.
@@ -70,12 +79,7 @@
 - Keep closed-menu graph work and driving-state review input polling off; add lifecycle/focus/fuzz/benchmark checks and documented runtime limitations.
 - Windows compilation and synthetic checks only; in-game operation and performance remain unverified.
 
-## Unreleased
-
-- Restore F8 during pauses entered from a live session, keeping held-control checks.
-- Roll back only abandoned lap data after rewinds, preserving earlier laps and prefix samples across all channels.
-
-- Show a text-only Waiting for UDP status before telemetry arrives; do not draw an empty or stale graph. — packet validation hardening
+## Packet validation hardening
 
 - Reject invalid pedals before session/frame tracking changes; preserve gap indication only for newer packets from the established player.
 - Decode each header and pedal pair once, with no new allocations or history storage.
@@ -101,14 +105,7 @@
 - Added reproducible build/package scripts and install instructions.
 - Compiled and inspected; real Swofty import and game testing remain pending.
 
-## Unreleased
-
-- Restore F8 during pauses entered from a live session, keeping held-control checks.
-- Roll back only abandoned lap data after rewinds, preserving earlier laps and prefix samples across all channels.
-
-- Show a text-only Waiting for UDP status before telemetry arrives; do not draw an empty or stale graph.
-
-### Added
+## Initial groundwork
 
 - Portable C++20 trace core with bounded history, validation and graph coordinate mapping.
 - Deterministic synthetic core checks with address/undefined-behaviour sanitizers.

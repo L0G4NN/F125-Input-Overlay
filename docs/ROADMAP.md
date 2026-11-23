@@ -1,68 +1,15 @@
 # Roadmap
 
-## M0 — Repository groundwork
+The live HUD, five lap-review pages, driver comparison and bounded session recorder are implemented. See the [user guide](INSTALL.md) and [full-field replay results](MULTI_DRIVER_REVIEW.md#050-full-field-replay).
 
-- [x] Define MVP and defaults.
-- [x] Document architecture, data correctness and lifecycle requirements.
-- [x] Document build strategy, test plan and upstream references.
-- [x] Add contribution templates, editor settings and ignore rules.
-- [x] Confirm private GitHub repository and publish this groundwork.
+## Outstanding validation
 
-No addon code is part of M0.
+- Verify native load, session transitions and shutdown on a recorded F1 25 and Swofty build.
+- Check garage, pause, flashback and setup-name input with keyboard, controller and wheel.
+- Compare enabled and disabled frame time and working set during a full offline race.
 
-## M1 — Compatibility and build spike
+See the [game test plan](TEST_PLAN.md) for the acceptance matrix.
 
-- [ ] Pin SDK revision, licences and toolchain.
-- [ ] Build a minimal addon and verify its load/unload lifecycle.
-- [ ] Confirm local-player inputs, units, source freshness and timing.
-- [ ] Verify overlay drawing and the relevant game/launcher versions.
-- [ ] Resolve pause/rewind detection and whether UDP is needed.
+## Later work
 
-Exit: evidence supports the proposed data and rendering path.
-
-## M2 — Trace core
-
-- [x] Implement validated input samples, state transitions and bounded history.
-- [x] Implement time-based graph geometry.
-- [x] Add synthetic tests for edge cases and variable frame rates.
-
-Exit: deterministic core behaviour without requiring F1 25.
-
-## M3 — Usable overlay
-
-- [ ] Integrate green/red traces, percentage labels and bars.
-- [ ] Add settings and viewport-safe layout.
-- [ ] Handle unavailable data and session discontinuities.
-- [ ] Verify thread ownership and clean shutdown.
-
-Exit: first end-to-end in-game demonstration.
-
-## M4 — First tested release
-
-- [ ] Run integration and manual checks.
-- [ ] Measure overhead and fix any regression.
-- [ ] Add verified build/install/troubleshooting instructions.
-- [ ] Validate and package the addon with dependency notices.
-
-Exit: a tagged release with exact supported versions and honest test evidence.
-
-## Later ideas
-
-User-selectable colours, steering trace and dragging.
-
-## Planned next feature — F8 lap review
-
-See [Session lap review and comparison](LAP_REVIEW.md). First experimental implementation is in dev; real-game validation remains open.
-
-- [ ] Verify overlay v3 input/focus, garage/pause state and fresh lap metadata.
-- [x] Add bounded session recording with correct lap completion, invalidity and flashback handling.
-- [x] Add F8 menu with completed-lap selection and distance-aligned X/Y traces.
-- [x] Add zoom/pan/cursor and bounded min/max geometry.
-- [ ] Complete sanitizer, fuzz, input-focus and in-game performance validation.
-Keep them separate from the initial throttle/brake implementation.
-
-The portable M2 core was implemented independently while M1 native source freshness and lifecycle questions remain open. M1 has not passed its exit gate.
-
-## First import build
-
-Native DLL, UDP adapter, settings, traces, bars and packaging are implemented. SDK and compiler are pinned. In-game lifecycle verification, actual launcher import, coexistence and performance remain open M1/M3/M4 gates.
+[Issue #24](https://github.com/L0G4NN/F125-Input-Overlay/issues/24) tracks session-to-session telemetry within the same race weekend. Other earlier ideas include selectable colours, a steering trace and dragging the live HUD.

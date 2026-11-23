@@ -62,7 +62,6 @@ public:
     bool has_samples(unsigned stamp) const { return last_sample_stamp_==stamp && visible_samples_>0; }
     void gap() { pending_={}; previous_={}; steering_valid_=false; }
     void truncate(unsigned slot,unsigned stamp,float distance) {
-        gap();
         if(!bins_ || slot>=slots_) return;
         last_sample_stamp_=stamp;
         visible_samples_=0;

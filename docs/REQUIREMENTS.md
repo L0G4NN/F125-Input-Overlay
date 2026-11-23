@@ -52,23 +52,10 @@ On a verified pause, retain history and mark it paused rather than timing it out
 After any discontinuity, no line may join samples from opposite sides of the discontinuity.
 Settings must survive a normal restart using the supported launcher mechanism.
 
+## Session review
+
+The [multi-driver guide](MULTI_DRIVER_REVIEW.md) defines lap selection, supported channels, flashback handling and storage limits. [Extended telemetry](EXTENDED_TELEMETRY.md) specifies the distance bins, units and bounds.
+
 ## Deferred
 
-Steering/clutch, best-lap comparison, CSV export, coaching, input filtering, raw pedal device access, lap-distance plots and alternative renderers.
-
-## Current implementation
-
-Native settings include 0–100% horizontal/vertical travel from the chosen corner. UDP parsing is implemented. Pause/session hooks, settings persistence and actual game performance still require runtime validation. Queue recovery deliberately waits for an empty socket boundary before accepting later packets.
-
-## Planned lap review extension
-
-The F6 full-session lap browser and X/Y distance comparison are specified in [LAP_REVIEW.md](LAP_REVIEW.md). This extends the original deferred lap recording/comparison scope. The experimental 0.2.0 build implements the first iteration with a recording toggle and F6–F12 review key setting. Actual game acceptance remains pending.
-
-## Extended telemetry in 0.3.0
-
-See [EXTENDED_TELEMETRY.md](EXTENDED_TELEMETRY.md) for the implemented sector markers, five F6 pages, per-wheel selector, front-wheel steering readout, verified EA offsets and unit limitations. The new total fixed pool is 52.4 MiB, superseding earlier pedal-only 24.2 MiB totals. Pedals retain 2 m bins; extra channels use 16 m extrema bins. Rendering is four 176-column arrays for the selected page only. Existing garage-only/unpaused focus safeguards and socket bounds remain in force. Game validation remains pending.
-
-
-## Multi-driver review (current)
-
-[Multi-driver review](MULTI_DRIVER_REVIEW.md) supersedes the player-only recording and trace-count descriptions above. X/Y select independent drivers and completed laps. Each car has up to 78 detailed completed laps, one active trace and 1,024 timing entries. Track length determines the per-driver quota under the 192 MiB recorder budget. Garage access and the live HUD follow the local player. Review also opens while paused. Opponent slip/aero data and restricted ERS remain unavailable. See that document for controls, retention limits, packet offsets, rewind handling and validation evidence.
+Raw pedal device access, clutch and steering traces, automatic best-lap comparison, CSV export, coaching, input filtering and alternative renderers.
