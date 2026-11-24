@@ -11,7 +11,7 @@ The display uses game-reported inputs, not pedal force or raw hardware readings.
 
 ## Preview
 
-The live HUD image shows an earlier in-game layout. The F6 preview shows the current panel drawing two synthetic laps in a test host with a substitute font.
+The live HUD image shows an earlier in-game layout.
 
 ### Live inputs
 
@@ -19,7 +19,15 @@ The live HUD image shows an earlier in-game layout. The F6 preview shows the cur
 
 ### F6 lap comparison
 
-![F6 lap comparison with the current theme and synthetic laps](docs/images/F6-lap-review.png)
+The Bahrain 2026 example compares two synthetic laps over the full 5.412 km layout. In **View: overlay**, the cyan and amber traces share the same axes on each graph. The preview was rendered in a test host with a substitute font.
+
+#### Pedals
+
+![F6 lap review in Overlay mode with cyan and amber throttle and brake traces for two example laps at Bahrain 2026](docs/images/F6-lap-review.png)
+
+#### Speed / Gear
+
+![F6 Speed / Gear page in Overlay mode with speed and gear traces for the same two Bahrain 2026 example laps](docs/images/F6-lap-review-speed-gear.png)
 
 ## Install and start driving
 
@@ -55,7 +63,7 @@ Choose a corner, then move inward with **Horizontal position** and **Vertical po
 
 Leave **Record session laps in memory** on while driving. Pause during the session (or return to the garage unpaused), press **F6** while the game window is active.
 
-Choose drivers independently with the **X v** and **Y v** buttons. Use **Laps: X driver / Y driver** to choose whose list to browse, then select **X** and **Y** beside completed laps. X is cyan and Y is amber, with separate comparison graphs for throttle and brake. Scroll over a graph to zoom, drag to pan, and use **Reset view** to fit the lap. Press **Escape**, **Close**, or your review key to return to the game. The default review key is F6 and can be changed to F6–F12. Existing Swofty profiles may retain a saved F8 binding; change it in addon settings.
+Choose drivers independently with the **X v** and **Y v** buttons. Use **Laps: X driver / Y driver** to choose whose list to browse, then select **X** and **Y** beside completed laps. X is cyan and Y is amber. Click **View** to switch between separate X/Y lanes and shared axes for throttle and brake. Scroll over a graph to zoom, drag to pan, and use **Reset view** to fit the lap. Press **Escape**, **Close**, or your review key to return to the game. The default review key is F6 and can be changed to F6–F12. Existing Swofty profiles may retain a saved F8 binding; change it in addon settings.
 
 **The recorder retains up to 78 detailed completed laps per driver**, plus the active lap, for up to 22 cars. Later laps show **NO TRACE** and retain timing. Very long layouts may lower the per-driver quota to stay within the 192 MiB recorder budget. F6 displays the session quota. Slip and aero data remain player-only; restricted opponent ERS is shown as unavailable. See [multi-driver review](docs/MULTI_DRIVER_REVIEW.md) for limits and validation.
 
