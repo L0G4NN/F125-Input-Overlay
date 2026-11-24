@@ -1,0 +1,35 @@
+name: Build latest installable addon
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v4
+      - name: Install pinned Zig compiler
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.1
+      - name: Run portable tests with sanitizers
+        run: bash scripts/test.sh
+      - name: Cross-compile Windows x64 addon
+        run: bash scripts/build.sh
+      - name: Validate and package addon
+        run: python3 scripts/package.py
+      - name: Upload installable ZIP and Swofty addon
+        uses: actions/upload-artifact@v4
+        with:
+          name: F125-Input-Overlay-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            dist/*.zip
+            dist/*.swoftyaddon
+          retention-days: 30
