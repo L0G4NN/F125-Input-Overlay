@@ -6,7 +6,7 @@ namespace input_trace {
 class ReceiveGate {
 public:
     bool begin(double now, bool reset, bool paused) {
-        if(!seen_ || reset || paused || paused_ != paused ||
+        if(!seen_ || reset || paused_ != paused ||
            !std::isfinite(now) || now-last_ > .5 || now < last_) dropping_=true;
         seen_=true; last_=now; paused_=paused;
         return dropping_;

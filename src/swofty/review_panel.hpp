@@ -35,7 +35,7 @@ public:
             if(x_<0) {
                 const auto& driver=r.driver(xd_);
                 for(int i=int(driver.size())-1;i>=0;--i) {
-                    if(!driver.lap(i).limited) { x_=i; break; }
+                    if(!driver.lap(i).limited) { x_=i; dirty_=true; break; }
                 }
             }
             return; // Wait for our own focused snapshot before interacting.
@@ -66,7 +66,7 @@ public:
         rect(12,898,1768,1,Theme::border);
         ov->text(paint,ox+20*scale,oy+10*scale,26*scale,Theme::foreground,"LAP REVIEW");
         text(220,16,"F125 INPUT OVERLAY",Theme::muted);
-        if(button(1670,12,110,"Close")) { close(ov); return; }
+        if(button(1670,12,110,"Close") && dropdown_<0) { close(ov); return; }
         const bool list_was_open=dropdown_>=0;
         bool driver_clicked=false;
         char driver_label[80];
@@ -189,9 +189,8 @@ public:
             view_begin_=std::clamp(drag_begin_-(mx-drag_x_)/gw*span,0.f,std::max(0.f,r.length()-span));
             view_end_=view_begin_+span; dirty_=true;
         }
-        if(dirty_ || cache_x_!=x_ || cache_y_!=y_ || cache_xd_!=xd_ || cache_yd_!=yd_) {
+        if(dirty_) {
             plot_.build(rx,x_,ry,y_,view_begin_,view_end_,channel0,channel1); dirty_=false;
-            cache_x_=x_; cache_y_=y_;cache_xd_=xd_;cache_yd_=yd_;
         }
         for(float top:{gy,gy2}) rect(gx-16,top-30,gw+32,gh+56,Theme::surface);
         for(unsigned s=0;s<4;++s) {
@@ -199,21 +198,25 @@ public:
             float top=(s%2?gy2:gy)+(split_ && s>=2?gh/2+12:0);
             float lane=split_?gh/2-12:gh;
             rect(gx,top,gw,lane,Theme::surface);
-            for(int i=0;i<3;++i) ov->line(paint,ox+gx*scale,oy+(top+i*lane/2)*scale,ox+(gx+gw)*scale,oy+(top+i*lane/2)*scale,scale,Theme::grid);
             if(split_) text(gx-30,top,s<2?"X":"Y",s<2?Theme::x:Theme::y);
+            const unsigned channel=s%2;
+            const float range=plot_.high[channel]-plot_.low[channel];
             for(int tick=0;tick<3;++tick) {
-                char value[24];
-                const unsigned channel=s%2;
-                float v=plot_.high[channel]-(plot_.high[channel]-plot_.low[channel])*tick/2;
-                std::snprintf(value,sizeof value,page_==0?"%.0f%%":"%.2f",v*(page_==0?100.f:1.f));
-                ov->text(paint,ox+(gx+4)*scale,oy+(top+(tick==0?3:tick==1?lane/2+3:lane-16))*scale,13*scale,Theme::muted,value);
+                float value=plot_.high[channel]-range*tick/2;
+                if(page_==1 && channel==1) value=std::round(value);
+                const float y=top+(plot_.high[channel]-value)/range*lane;
+                ov->line(paint,ox+gx*scale,oy+y*scale,ox+(gx+gw)*scale,oy+y*scale,scale,Theme::grid);
+                char label[24];
+                if(page_==0) std::snprintf(label,sizeof label,"%.0f%%",value*100);
+                else std::snprintf(label,sizeof label,"%.6g",value);
+                ov->text(paint,ox+(gx+4)*scale,oy+(y+(tick==2?-16:3))*scale,13*scale,Theme::muted,label);
             }
         }
         char axis[128];
         auto norm=[&](float value,unsigned channel) {return std::clamp((value-plot_.low[channel])/(plot_.high[channel]-plot_.low[channel]),0.f,1.f);};
         for(unsigned c=0;c<2;++c) {
             float factor=page_==0?100.f:1.f;
-            std::snprintf(axis,sizeof axis,"%s   %.3f to %.3f",c?title1:title0,plot_.low[c]*factor,plot_.high[c]*factor);
+            std::snprintf(axis,sizeof axis,"%s   %.6g to %.6g",c?title1:title0,plot_.low[c]*factor,plot_.high[c]*factor);
             text(gx,(c?gy2:gy)-28,axis);
         }
         // At most 4 * 176 * 2 lines = 8,448 trace vertices. Same bounded
@@ -299,7 +302,7 @@ public:
         char capacity[96];
         std::snprintf(capacity,sizeof capacity,"%u detailed laps per driver; later laps: timing only.",
                       r.detailed_lap_capacity());
-        text(620,910,r.metadata_limit()?"Lap metadata limit reached.":capacity,Theme::muted);
+        if(r.session_ready()) text(620,910,r.metadata_limit()?"Lap metadata limit reached.":capacity,Theme::muted);
         (void)now;
     }
 private:
@@ -307,9 +310,9 @@ private:
     static constexpr const char* wheel_names_[4]={"Wheel: rear left","Wheel: rear right","Wheel: front left","Wheel: front right"};
     int page_{},wheel_{},dropdown_{-1},driver_scroll_{};
     Plot plot_{};
-    unsigned generation_{},xd_{},yd_{},cache_xd_{},cache_yd_{};
+    unsigned generation_{},xd_{},yd_{};
     bool browse_y_{};
-    int x_{-1},y_{-1},cache_x_{-2},cache_y_{-2},scroll_{};
+    int x_{-1},y_{-1},scroll_{};
     float view_begin_{},view_end_{},drag_x_{},drag_begin_{};
     bool open_{},dragging_{},dirty_{true},split_{true};
 };

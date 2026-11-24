@@ -52,8 +52,9 @@ public:
     void reset() {
         release_all();
         count_=0; retained_=0; active_=false; session_=false; garage_=false; lap_seen_=false; rewound_=false; finished_=false; rewind_pending_=false;
-        extras_.gap(); sectors_={}; pairs_={}; seen_={}; broken_=true; have_sample_=false; ++generation_; // pool stamps are never reused
+        extras_.gap(); length_=0; sectors_={}; pairs_={}; seen_={}; broken_=true; have_sample_=false; ++generation_; // pool stamps are never reused
     }
+    void transport_gap() { lap_seen_=false; gap(); }
     void gap() { extras_.gap(); broken_=true; if(active_) current_.partial=true; pairs_={}; }
     void set_recording(bool on) { if(recording_!=on) { recording_=on; release_current(); active_=false; pairs_={}; extras_.gap(); } }
     std::size_t size() const { return rewind_pending_?0:count_; }
@@ -107,10 +108,10 @@ public:
             if(!header(h,1,753)) return;
             unsigned len=unsigned(p[33]) | unsigned(p[34])<<8;
             if(len<100 || len>bins_per_lap*2 || p[36]>127 || p[44]!=0 || p[154]!=0) return;
-            for(auto old:retired_) if(old && old==h.session) return;
+            if(retired_.contains(h.session)) return;
             if(session_ && h.session==uid_ && !newer(0,h.frame)) return;
             if(session_ && (h.session!=uid_ || h.player!=player_ || track_!=p[36] || length_!=len)) {
-                if(h.session!=uid_) retired_[retire_pos_++%retired_.size()]=uid_;
+                if(h.session!=uid_) retired_.add(uid_);
                 reset();
             }
             if(!session_) { uid_=h.session; player_=h.player; track_=p[36]; length_=float(len); session_=true; }
@@ -178,8 +179,9 @@ public:
             request_rewind(h);
         }
         remember(stream,h);
-        if(rewind_pending_) {
-            if(stream!=1) return;
+        // Queue target-frame telemetry as usual. The rewind barrier already
+        // removed pre-rewind pairs, and only Lap Data can supply a distance.
+        if(rewind_pending_ && stream==1) {
             truncate(m); rewind_pending_=false;
         }
         if(stream==1) {
@@ -214,6 +216,7 @@ public:
         if(stream==1) { pair.meta=m; pair.mw=wall; pair.m=true; }
         else { pair.pedals=h; pair.pw=wall; pair.p=true; }
         if(pair.m && pair.p) {
+            if(!active_ || pair.meta.lap!=current_.number) { pair={}; return; }
             if(std::abs(pair.meta.h.time-pair.pedals.time)<=.1 && std::abs(pair.mw-pair.pw)<=.1)
                 sample(pair.meta,pair.pedals);
             else gap();
@@ -249,9 +252,11 @@ private:
             if(!found || laps_[i].stamp!=retained.stamp) release(laps_[i]);
         }
         count_=keep;
-        active_=found; have_sample_=false; pedal_samples_=0;broken_=true;pairs_={};extras_.gap();
+        active_=found; have_sample_=false; pedal_samples_=0;broken_=true;
         if(!found) return;
-        current_=retained;current_.time_ms=0;current_.partial=true;
+        current_=retained;
+        if(!recording_) { release_current(); active_=false; return; }
+        current_.time_ms=0;current_.partial=true;
         current_.last=m.distance;
         if(!current_.limited && bins_) {
             const auto first=std::size_t(std::clamp(m.distance/2.f,0.f,float(distance_bins_)));
@@ -279,7 +284,7 @@ private:
     }
     void remember(unsigned i,const Pedals& h) { frames_[i]=h.frame; times_[i]=h.time; seen_[i]=true; }
     void sample(const Meta& m,const Pedals& p) {
-        if(!active_ || m.lap!=current_.number || m.driver==0 || m.distance<0 || m.distance>=length_) { gap(); return; }
+        if(m.driver==0 || m.distance<0 || m.distance>=length_) { gap(); return; }
         if(m.distance+2<current_.last) { gap(); return; }
         const auto i=std::size_t(m.distance/2);
         if(i>=distance_bins_) { gap(); return; }
@@ -320,14 +325,14 @@ private:
     std::array<float,2> sectors_{};
     std::array<Lap,lap_limit> laps_{};
     std::array<Pair,8> pairs_{};
-    std::array<std::uint64_t,64> retired_{};
+    RetiredSessions retired_;
     std::array<std::uint32_t,7> frames_{};
     std::array<double,7> times_{};
     std::array<bool,7> seen_{};
     Lap current_{};
     std::array<unsigned,100> history_times_{};
     unsigned history_count_{};
-    std::size_t count_{}, retire_pos_{};
+    std::size_t count_{};
     std::uint64_t uid_{};
     unsigned player_{}, track_{}, generation_{};
     std::uint32_t rewind_frame_{}, classification_frame_{};

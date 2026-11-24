@@ -1,5 +1,6 @@
 #pragma once
 #include "trace.hpp"
+#include <algorithm>
 #include <bit>
 #include <span>
 namespace input_trace {
@@ -38,6 +39,22 @@ inline bool decode_pedals(std::span<const unsigned char> p, Pedals& out) {
 inline bool decode(std::span<const unsigned char> p, Pedals& out) {
     return decode_header(p,out) && decode_pedals(p,out);
 }
+// Session IDs are opaque, including zero. Only populated slots participate.
+class RetiredSessions {
+public:
+    bool contains(std::uint64_t uid) const {
+        const auto end=ids_.begin()+count_;
+        return std::find(ids_.begin(),end,uid)!=end;
+    }
+    void add(std::uint64_t uid) {
+        ids_[next_]=uid;
+        next_=(next_+1)%ids_.size();
+        count_=std::min(count_+1,ids_.size());
+    }
+private:
+    std::array<std::uint64_t,64> ids_{};
+    std::size_t next_{},count_{};
+};
 class Feed {
 public:
     Trace<> trace;
@@ -53,10 +70,10 @@ public:
                 trace.unavailable();
             return false;
         }
-        for(auto old:retired_) if(old && old==next.session) return false;
+        if(retired_.contains(next.session)) return false;
         if(have_ && next.session==session_ &&
            (next.frame==frame_ || std::uint32_t(next.frame-frame_)>=0x80000000u)) return false;
-        if(have_ && next.session!=session_) { retired_[retired_pos_++ % retired_.size()]=session_; }
+        if(have_ && next.session!=session_) { retired_.add(session_); }
         if(!have_ || next.session!=session_ || next.player!=player_) {
             trace.clear(); have_=false;
         }
@@ -72,8 +89,7 @@ public:
     // the same UID can rewind time while its overall frame continues forward.
     void clear() { trace.clear(); }
 private:
-    std::array<std::uint64_t,64> retired_{};
-    std::size_t retired_pos_{};
+    RetiredSessions retired_;
     bool have_{};
     std::uint64_t session_{};
     unsigned player_{};

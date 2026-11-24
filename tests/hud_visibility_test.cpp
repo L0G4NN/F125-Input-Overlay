@@ -10,7 +10,7 @@ int main() {
     assert(!show_waiting_hud(true,false)); // pause/flashback
     assert(!show_waiting_hud(true,true));
 
-    // F8 works throughout pause, including absent/stale UDP and initial menu entry.
+    // F6 works throughout pause, including absent/stale UDP and initial menu entry.
     assert(review_interactive(true,false));
     assert(review_interactive(true,true));
     assert(review_interactive(false,true));
@@ -20,7 +20,7 @@ int main() {
     assert(!show_live_hud(true,true,true));   // pause hides even if driving metadata was fresh
     assert(show_live_hud(true,false,true));
     assert(show_live_hud(false,true,false)); // explicit troubleshooting override
-    // Visibility metadata works without the 24 MiB review pool (older cores or allocation failure).
+    // Visibility metadata works without the review pool (older cores or allocation failure).
     review::Recorder r; r.accept(session(),0);
     assert(!r.on_track(0) && !r.garage(0)); // session packet alone is not lap evidence
     r.accept(meta(1,10,1,.01f,0),1);

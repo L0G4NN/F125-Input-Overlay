@@ -6,12 +6,15 @@
 #include "multi_fixture.hpp"
 #include <cstdlib>
 #include <cstring>
+#include <set>
+#include <string>
 #include <iostream>
 #include <source_location>
 using namespace input_trace::review;
 namespace {
 constexpr int default_hotkey=117; // Win32 VK_F6
 int bound_hotkey=default_hotkey;
+std::set<std::string> upper_ticks, lower_ticks;
 char rendered_key_hint[64]{}, x_summary[96]{};
 bool opponent_selected=false,unavailable_hint=false,last_driver_visible=false,last_driver_selected=false;
 SwoftyInput input{}; int sectors=0; int glyphs=0; bool amber=false,cyan=false; int focus_calls=0, lines=0, texts=0,rects=0, input_calls=0; bool focused=false; int focus_result=SWOFTY_ASSET_OK;
@@ -26,7 +29,18 @@ void rect(SwoftyPaint*,float,float,float w,float h,uint32_t colour) {
     }
 }
 void line(SwoftyPaint*,float x,float y,float a,float b,float,uint32_t colour) {if(colour==0xffffff80) ++sectors;if(colour==0xffbd59ff) amber=true;if(colour==Theme::x) cyan=true;if(!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(a)||!std::isfinite(b))std::abort();++lines;}
-void text(SwoftyPaint*,float,float,float,uint32_t,const char* str) {if(std::strncmp(str,"X: ",3)==0)std::snprintf(x_summary,sizeof x_summary,"%s",str);++texts;glyphs+=int(std::strlen(str));if(std::strstr(str,"22  Driver 22"))last_driver_visible=true;if(std::strstr(str,"Y: Driver 22 / no lap"))last_driver_selected=true;if(std::strstr(str,"Y: Driver 2 / lap 1"))opponent_selected=true;if(std::strstr(str,"Player-only"))unavailable_hint=true;if(std::strstr(str," / Esc  Close review"))std::snprintf(rendered_key_hint,sizeof rendered_key_hint,"%s",str);}
+void text(SwoftyPaint*,float x,float y,float font,uint32_t,const char* str) {
+    if(x==684 && font==13) (y<570?upper_ticks:lower_ticks).insert(str);
+    ++texts;
+    glyphs+=int(std::strlen(str));
+    if(std::strncmp(str,"X: ",3)==0) std::snprintf(x_summary,sizeof x_summary,"%s",str);
+    if(std::strstr(str,"22  Driver 22")) last_driver_visible=true;
+    if(std::strstr(str,"Y: Driver 22 / no lap")) last_driver_selected=true;
+    if(std::strstr(str,"Y: Driver 2 / lap 1")) opponent_selected=true;
+    if(std::strstr(str,"Player-only")) unavailable_hint=true;
+    if(std::strstr(str," / Esc  Close review"))
+        std::snprintf(rendered_key_hint,sizeof rendered_key_hint,"%s",str);
+}
 void check(bool ok,std::source_location where=std::source_location::current()) {
     if(!ok) {std::cerr << where.file_name() << ":" << where.line() << "\n";std::abort();}
 }
@@ -92,7 +106,10 @@ int main() {
     // Exercise every page at full X/Y geometry density, with sectors and cursor.
     for(int page=0;page<5;++page) {
         input={};input.x=60+610+page*230;input.y=70+110;input.pressed=SWOFTY_MOUSE_LEFT;paint();
-        input={};input.x=1000;input.y=300;lines=rects=glyphs=sectors=0;amber=cyan=false;paint();
+        input={};input.x=1000;input.y=300;lines=rects=glyphs=sectors=0;amber=cyan=false;
+        upper_ticks.clear();lower_ticks.clear();paint();
+        if(page==1) check(lower_ticks==std::set<std::string>{"-1","4","8"});
+        if(page==4) check(upper_ticks.size()==3 && lower_ticks.size()==3);
         check(amber && cyan && sectors>0 && 6*(lines+rects+glyphs)<16384);
     }
     // Drive the real independent driver selectors, then a same-number lap in
@@ -134,6 +151,10 @@ int main() {
     input={};lines=rects=glyphs=0;draw_grid();check(last_driver_visible && 6*(lines+rects+glyphs)<16384);
     input={};input.x=380;input.y=540;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();
     check(last_driver_selected); // eighth entry on the final page is car 22
+    // Close lies outside the popup. The first click dismisses only the popup.
+    input={};input.x=380;input.y=130;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();
+    input={};input.x=1750;input.y=95;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();
+    check(cross.open() && focused);
     // Wheel scrolling and Escape dismiss do not change the selected driver.
     input={};input.x=380;input.y=130;input.pressed=SWOFTY_MOUSE_LEFT;draw_grid();
     input={};input.x=380;input.y=300;input.wheel=1;draw_grid();
