@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Report UDP processing, live HUD drawing, F6 panel drawing and plot rebuild times in Swofty’s performance log when its profiling API is available.
+
 - Populate recorder backing pages during addon load to reduce first-touch stalls during longer races. This increases initial working set.
 
 - Protect race history from delayed Session packets after a reset and preserve local laps when the player changes telemetry sharing.

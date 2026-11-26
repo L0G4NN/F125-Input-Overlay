@@ -29,3 +29,5 @@ Install the `.swoftyaddon` on the Addons page (or `swofty addons install FILE`),
 
 
 See the [multi-driver guide](MULTI_DRIVER_REVIEW.md) for review controls, storage and validation.
+
+The optional CPU timing probes use the profiling exports verified against Swofty v1.10.54 (`fb0a8f3`). The addon resolves the exports at load and skips timing when the interface is missing. See [late-race stutter capture](TEST_PLAN.md#late-race-stutter-capture).

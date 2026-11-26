@@ -6,6 +6,7 @@
 #include "core/layout.hpp"
 #include "core/hud_visibility.hpp"
 #include "core/receive_gate.hpp"
+#include "perf_probes.hpp"
 #include "review_panel.hpp"
 #include <algorithm>
 #include <atomic>
@@ -21,6 +22,7 @@ input_trace::Feed feed;
 input_trace::ReceiveGate receive_gate;
 input_trace::review::MultiRecorder recorder;
 input_trace::review::Panel review_panel;
+input_trace::PerfProbes perf;
 bool review_supported{};
 using PauseQuery=std::uint32_t (*)();
 PauseQuery pause_query{};
@@ -87,6 +89,7 @@ void paint(SwoftyPaint* p,void*) {
     const double now=double(GetTickCount64())/1000;
     if(receive_gate.begin(now,reset,is_paused)) { recorder.transport_gap(); if(!is_paused) feed.trace.unavailable(); }
     if(sock!=INVALID_SOCKET) {
+        const input_trace::PerfProbes::Scope timing(perf, perf.udp);
         unsigned char packet[2048];
         bool drained=false;
         // Fixed receive budget: no blocking or unbounded drain in render callback.
@@ -114,7 +117,7 @@ void paint(SwoftyPaint* p,void*) {
     DWORD foreground_pid=0;
     if(review_supported && review_safe) GetWindowThreadProcessId(GetForegroundWindow(),&foreground_pid);
     review_panel.paint(api,p,recorder,now,review_safe,
-                       foreground_pid==GetCurrentProcessId(),VK_F1+review_key.load()-1,review_supported);
+                       foreground_pid==GetCurrentProcessId(),VK_F1+review_key.load()-1,review_supported,perf);
     if(review_panel.open()) return;
     const auto panel=input_trace::layout(sw,sh,width.load(),height.load(),anchor.load(),horizontal.load(),vertical.load());
     const float x=panel.x,y=panel.y,w=panel.w,h=panel.h,scale=panel.scale;
@@ -126,6 +129,7 @@ void paint(SwoftyPaint* p,void*) {
         return;
     }
     if(!input_trace::show_live_hud(hide_in_menus.load(),is_paused,recorder.on_track(now))) return;
+    const input_trace::PerfProbes::Scope timing(perf, perf.live_hud);
     ov->rect(p,x,y,w,h,std::uint32_t(opacity.load()*255/100));
     const float gx=x+36*scale, gy=y+48*scale, gw=w-100*scale, gh=h-68*scale;
     for(int i=0;i<3;++i) {
@@ -184,6 +188,13 @@ void* allocate_review_pages(std::size_t bytes) {
 void release_review_pages(void* pages) { VirtualFree(pages,0,MEM_RELEASE); }
 void start() {
     HMODULE core=GetModuleHandleW(L"swofty_core.dll");
+    if (core) {
+        using Probes = input_trace::PerfProbes;
+        perf = Probes::create(
+            std::bit_cast<Probes::Register>(GetProcAddress(core, "SwoftyPerfProbe")),
+            std::bit_cast<Probes::Enter>(GetProcAddress(core, "SwoftyPerfEnter")),
+            std::bit_cast<Probes::Leave>(GetProcAddress(core, "SwoftyPerfLeave")));
+    }
     using VersionQuery=std::uint32_t (*)();
     auto version=core?std::bit_cast<VersionQuery>(GetProcAddress(core,"SwoftyCoreOverlayVersion")):nullptr;
     pause_query=core?std::bit_cast<PauseQuery>(GetProcAddress(core,"SwoftyCorePauseReasons")):nullptr;
