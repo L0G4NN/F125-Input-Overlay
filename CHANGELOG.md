@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Report UDP processing, live HUD drawing, F6 panel drawing and plot rebuild times in Swofty’s performance log when its profiling API is available.
+- Add an **Enable performance profiling** toggle, off by default. Turn it on to report UDP processing, live HUD drawing, F6 panel drawing and plot rebuild times in Swofty’s performance log when its profiling API is available.
 
 - Populate recorder backing pages during addon load to reduce first-touch stalls during longer races. This increases initial working set.
 

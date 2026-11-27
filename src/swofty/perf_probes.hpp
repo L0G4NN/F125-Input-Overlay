@@ -21,6 +21,11 @@ struct PerfProbes {
                 probe(owner, "F6 plot rebuild")};
     }
 
+    const PerfProbes& for_frame(bool enabled) const {
+        static constexpr PerfProbes disabled{};
+        return enabled ? *this : disabled;
+    }
+
     class Scope {
     public:
         Scope(const PerfProbes& probes, std::uint32_t id) : leave_(id ? probes.leave : nullptr) {

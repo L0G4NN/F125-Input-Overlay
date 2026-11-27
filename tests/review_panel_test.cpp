@@ -61,7 +61,8 @@ int main() {
     const auto perf=PerfProbes::create(register_probe,enter,leave);
     { PerfProbes::Scope skipped(perf,0); }
     check(!exits);
-    auto paint=[&](bool safe=true,bool active=true,bool supported=true){p.paint(&api,nullptr,r,0,safe,active,bound_hotkey,supported,perf);};
+    bool profiling_enabled = false;
+    auto paint=[&](bool safe=true,bool active=true,bool supported=true){p.paint(&api,nullptr,r,0,safe,active,bound_hotkey,supported,perf.for_frame(profiling_enabled));};
     paint();check(!p.open() && !texts && !lines && !rects);
     check(!entries[perf.review] && !entries[perf.rebuild] && !exits);
     // F8 must not open a new F6-default panel or acquire input focus.
@@ -70,7 +71,14 @@ int main() {
     paint(true,true,false);check(!p.open() && !focus_calls); // old cores: never touch v3
     paint();check(p.open() && focused);input={};paint();
     check(lines<=2060 && texts>0 && std::strcmp(rendered_key_hint,"F6 / Esc  Close review")==0);
+    check(!entries[perf.review] && !entries[perf.rebuild] && !exits);
+    // Rebuild the visible plot with timing on, then off, then on again.
+    input.x=875; input.y=145; input.pressed=SWOFTY_MOUSE_LEFT; // Reset view
+    profiling_enabled=true; paint();
     check(entries[perf.review]==1 && entries[perf.rebuild]==1 && exits==2);
+    profiling_enabled=false; paint();
+    check(p.open() && focused && entries[perf.review]==1 && entries[perf.rebuild]==1 && exits==2);
+    profiling_enabled=true; input={};
     bound_hotkey=118;paint();check(std::strcmp(rendered_key_hint,"F7 / Esc  Close review")==0);
     check(entries[perf.review]==2 && entries[perf.rebuild]==1 && exits==3);
     bound_hotkey=default_hotkey;

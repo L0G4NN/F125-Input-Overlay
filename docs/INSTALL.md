@@ -47,6 +47,7 @@ Open **ADDON SETTINGS → F1 25 Input Overlay**. Settings use your Swofty profil
 | Record session laps in memory | On by default. Turning it off preserves completed laps but discards the partial active lap. |
 | Lap review key | F6–F12; default F6. Saved settings in older profiles may still use F8. Avoid bindings used by the game or other addons. |
 | Hide live HUD in garage and menus | On by default. Turn off temporarily to see HUD status messages when diagnosing telemetry. |
+| Enable performance profiling | Off by default. Turn on to collect the four overlay CPU timings in `swofty/perf.log`. Turning it off stops new timing samples on the next paint. Lap recording has its own toggle. |
 
 The full live panel stays inside the screen. Mouse dragging to reposition it is not implemented.
 

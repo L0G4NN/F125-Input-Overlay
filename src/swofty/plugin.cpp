@@ -22,7 +22,8 @@ input_trace::Feed feed;
 input_trace::ReceiveGate receive_gate;
 input_trace::review::MultiRecorder recorder;
 input_trace::review::Panel review_panel;
-input_trace::PerfProbes perf;
+input_trace::PerfProbes registered_probes;
+std::atomic<bool> profiling{false};
 bool review_supported{};
 using PauseQuery=std::uint32_t (*)();
 PauseQuery pause_query{};
@@ -32,6 +33,7 @@ void settings(const char* id,const SwoftySettingValue* v,void*) {
     if(v->type==SWOFTY_SETTING_TOGGLE) {
         if(std::strcmp(id,"enabled")==0) enabled=v->toggle!=0;
         if(std::strcmp(id,"bars")==0) bars=v->toggle!=0;
+        if(std::strcmp(id,"profiling")==0) profiling=v->toggle!=0;
         if(std::strcmp(id,"recording")==0) recording=v->toggle!=0;
         if(std::strcmp(id,"hide_in_menus")==0) hide_in_menus=v->toggle!=0;
     } else if(v->type==SWOFTY_SETTING_SLIDER && std::isfinite(v->slider)) {
@@ -80,6 +82,7 @@ void paint(SwoftyPaint* p,void*) {
         if(review_supported) review_panel.close(api->overlay);
         was_enabled=false; return;
     }
+    const auto& perf = registered_probes.for_frame(profiling.load(std::memory_order_relaxed));
     if(!attempted) open_socket();
     if(on!=was_enabled) {feed.clear(); recorder.reset(); receive_gate=input_trace::ReceiveGate{}; was_enabled=on;}
     recorder.set_recording(recording.load());
@@ -190,7 +193,7 @@ void start() {
     HMODULE core=GetModuleHandleW(L"swofty_core.dll");
     if (core) {
         using Probes = input_trace::PerfProbes;
-        perf = Probes::create(
+        registered_probes = Probes::create(
             std::bit_cast<Probes::Register>(GetProcAddress(core, "SwoftyPerfProbe")),
             std::bit_cast<Probes::Enter>(GetProcAddress(core, "SwoftyPerfEnter")),
             std::bit_cast<Probes::Leave>(GetProcAddress(core, "SwoftyPerfLeave")));
@@ -201,13 +204,15 @@ void start() {
     review_supported=version && version()>=3;
     if(review_supported && !recorder.initialize(allocate_review_pages,release_review_pages)) { review_supported=false; api->log("[input-overlay] review pool allocation failed; live overlay remains enabled"); }
     if(!review_supported) api->log("[input-overlay] lap review needs overlay input v3; live overlay remains enabled");
-    const char* names[]={"enabled","bars","history","width","height","opacity","anchor","horizontal","vertical","recording","review_key","hide_in_menus"};
-    for(auto id:names) {
-        const unsigned type=(std::strcmp(id,"enabled")==0 || std::strcmp(id,"bars")==0 || std::strcmp(id,"recording")==0 || std::strcmp(id,"hide_in_menus")==0)?SWOFTY_SETTING_TOGGLE:SWOFTY_SETTING_SLIDER;
-        SwoftySettingValue v{};
-        if(api->setting && api->setting(id,type,&v)) settings(id,&v,nullptr);
-        if(api->watch_setting) api->watch_setting(id,settings,nullptr);
-    }
+    auto read_and_watch = [](const char* id, unsigned type) {
+        SwoftySettingValue value{};
+        if (api->setting && api->setting(id,type,&value)) settings(id,&value,nullptr);
+        if (api->watch_setting) api->watch_setting(id,settings,nullptr);
+    };
+    for (auto id : {"enabled","bars","recording","hide_in_menus","profiling"})
+        read_and_watch(id, SWOFTY_SETTING_TOGGLE);
+    for (auto id : {"history","width","height","opacity","anchor","horizontal","vertical","review_key"})
+        read_and_watch(id, SWOFTY_SETTING_SLIDER);
     api->log("[input-overlay] live HUD hidden in menus by default; requires fresh UDP lap data while driving");
     if(api->events) {
         api->events->subscribe(SWOFTY_EVENT_SESSION_START,reset_event,nullptr,nullptr);
