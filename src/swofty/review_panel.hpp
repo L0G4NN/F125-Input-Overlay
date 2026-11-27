@@ -1,4 +1,5 @@
 #pragma once
+#include "perf_probes.hpp"
 #include "core/review_plot.hpp"
 #include "core/multi_review.hpp"
 // Included by the Windows adapter. All methods are called by its render owner.
@@ -19,7 +20,8 @@ public:
     bool open() const { return open_; }
     template<class Source>
     void paint(const SwoftyApi* api,SwoftyPaint* paint,const Source& r,
-               double now,bool safe,bool active_window,int hotkey,bool supported) {
+               double now,bool safe,bool active_window,int hotkey,bool supported,
+               const PerfProbes& perf = {}) {
         if(!supported) return; // Never access v3 fields without runtime feature detection.
         auto ov=api->overlay;
         if(generation_!=r.generation()) { close(ov); generation_=r.generation(); x_=y_=-1; xd_=yd_=r.player_index(); scroll_=0; view_end_=0; dirty_=true; }
@@ -42,6 +44,7 @@ public:
         }
         if(!open_) return;
         if(key(in,VK_ESCAPE)) { if(dropdown_>=0) dropdown_=-1; else close(ov); return; }
+        const PerfProbes::Scope paint_timing(perf, perf.review);
         float sw=0,sh=0; ov->size(paint,&sw,&sh);
         float scale=std::min(sw/1920,sh/1080);
         if(scale<=0) { close(ov); return; }
@@ -190,6 +193,7 @@ public:
             view_end_=view_begin_+span; dirty_=true;
         }
         if(dirty_) {
+            const PerfProbes::Scope rebuild_timing(perf, perf.rebuild);
             plot_.build(rx,x_,ry,y_,view_begin_,view_end_,channel0,channel1); dirty_=false;
         }
         for(float top:{gy,gy2}) rect(gx-16,top-30,gw+32,gh+56,Theme::surface);

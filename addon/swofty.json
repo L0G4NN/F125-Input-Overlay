@@ -129,6 +129,13 @@
       "label": "Hide live HUD in garage and menus",
       "default": true,
       "binds": "native"
+    },
+    {
+      "id": "profiling",
+      "type": "toggle",
+      "label": "Enable performance profiling",
+      "default": false,
+      "binds": "native"
     }
   ],
   "operations": {

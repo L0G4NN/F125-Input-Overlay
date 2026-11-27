@@ -6,6 +6,7 @@
 #include "core/layout.hpp"
 #include "core/hud_visibility.hpp"
 #include "core/receive_gate.hpp"
+#include "perf_probes.hpp"
 #include "review_panel.hpp"
 #include <algorithm>
 #include <atomic>
@@ -21,6 +22,8 @@ input_trace::Feed feed;
 input_trace::ReceiveGate receive_gate;
 input_trace::review::MultiRecorder recorder;
 input_trace::review::Panel review_panel;
+input_trace::PerfProbes registered_probes;
+std::atomic<bool> profiling{false};
 bool review_supported{};
 using PauseQuery=std::uint32_t (*)();
 PauseQuery pause_query{};
@@ -30,6 +33,7 @@ void settings(const char* id,const SwoftySettingValue* v,void*) {
     if(v->type==SWOFTY_SETTING_TOGGLE) {
         if(std::strcmp(id,"enabled")==0) enabled=v->toggle!=0;
         if(std::strcmp(id,"bars")==0) bars=v->toggle!=0;
+        if(std::strcmp(id,"profiling")==0) profiling=v->toggle!=0;
         if(std::strcmp(id,"recording")==0) recording=v->toggle!=0;
         if(std::strcmp(id,"hide_in_menus")==0) hide_in_menus=v->toggle!=0;
     } else if(v->type==SWOFTY_SETTING_SLIDER && std::isfinite(v->slider)) {
@@ -78,6 +82,7 @@ void paint(SwoftyPaint* p,void*) {
         if(review_supported) review_panel.close(api->overlay);
         was_enabled=false; return;
     }
+    const auto& perf = registered_probes.for_frame(profiling.load(std::memory_order_relaxed));
     if(!attempted) open_socket();
     if(on!=was_enabled) {feed.clear(); recorder.reset(); receive_gate=input_trace::ReceiveGate{}; was_enabled=on;}
     recorder.set_recording(recording.load());
@@ -87,6 +92,7 @@ void paint(SwoftyPaint* p,void*) {
     const double now=double(GetTickCount64())/1000;
     if(receive_gate.begin(now,reset,is_paused)) { recorder.transport_gap(); if(!is_paused) feed.trace.unavailable(); }
     if(sock!=INVALID_SOCKET) {
+        const input_trace::PerfProbes::Scope timing(perf, perf.udp);
         unsigned char packet[2048];
         bool drained=false;
         // Fixed receive budget: no blocking or unbounded drain in render callback.
@@ -114,7 +120,7 @@ void paint(SwoftyPaint* p,void*) {
     DWORD foreground_pid=0;
     if(review_supported && review_safe) GetWindowThreadProcessId(GetForegroundWindow(),&foreground_pid);
     review_panel.paint(api,p,recorder,now,review_safe,
-                       foreground_pid==GetCurrentProcessId(),VK_F1+review_key.load()-1,review_supported);
+                       foreground_pid==GetCurrentProcessId(),VK_F1+review_key.load()-1,review_supported,perf);
     if(review_panel.open()) return;
     const auto panel=input_trace::layout(sw,sh,width.load(),height.load(),anchor.load(),horizontal.load(),vertical.load());
     const float x=panel.x,y=panel.y,w=panel.w,h=panel.h,scale=panel.scale;
@@ -126,6 +132,7 @@ void paint(SwoftyPaint* p,void*) {
         return;
     }
     if(!input_trace::show_live_hud(hide_in_menus.load(),is_paused,recorder.on_track(now))) return;
+    const input_trace::PerfProbes::Scope timing(perf, perf.live_hud);
     ov->rect(p,x,y,w,h,std::uint32_t(opacity.load()*255/100));
     const float gx=x+36*scale, gy=y+48*scale, gw=w-100*scale, gh=h-68*scale;
     for(int i=0;i<3;++i) {
@@ -184,19 +191,28 @@ void* allocate_review_pages(std::size_t bytes) {
 void release_review_pages(void* pages) { VirtualFree(pages,0,MEM_RELEASE); }
 void start() {
     HMODULE core=GetModuleHandleW(L"swofty_core.dll");
+    if (core) {
+        using Probes = input_trace::PerfProbes;
+        registered_probes = Probes::create(
+            std::bit_cast<Probes::Register>(GetProcAddress(core, "SwoftyPerfProbe")),
+            std::bit_cast<Probes::Enter>(GetProcAddress(core, "SwoftyPerfEnter")),
+            std::bit_cast<Probes::Leave>(GetProcAddress(core, "SwoftyPerfLeave")));
+    }
     using VersionQuery=std::uint32_t (*)();
     auto version=core?std::bit_cast<VersionQuery>(GetProcAddress(core,"SwoftyCoreOverlayVersion")):nullptr;
     pause_query=core?std::bit_cast<PauseQuery>(GetProcAddress(core,"SwoftyCorePauseReasons")):nullptr;
     review_supported=version && version()>=3;
     if(review_supported && !recorder.initialize(allocate_review_pages,release_review_pages)) { review_supported=false; api->log("[input-overlay] review pool allocation failed; live overlay remains enabled"); }
     if(!review_supported) api->log("[input-overlay] lap review needs overlay input v3; live overlay remains enabled");
-    const char* names[]={"enabled","bars","history","width","height","opacity","anchor","horizontal","vertical","recording","review_key","hide_in_menus"};
-    for(auto id:names) {
-        const unsigned type=(std::strcmp(id,"enabled")==0 || std::strcmp(id,"bars")==0 || std::strcmp(id,"recording")==0 || std::strcmp(id,"hide_in_menus")==0)?SWOFTY_SETTING_TOGGLE:SWOFTY_SETTING_SLIDER;
-        SwoftySettingValue v{};
-        if(api->setting && api->setting(id,type,&v)) settings(id,&v,nullptr);
-        if(api->watch_setting) api->watch_setting(id,settings,nullptr);
-    }
+    auto read_and_watch = [](const char* id, unsigned type) {
+        SwoftySettingValue value{};
+        if (api->setting && api->setting(id,type,&value)) settings(id,&value,nullptr);
+        if (api->watch_setting) api->watch_setting(id,settings,nullptr);
+    };
+    for (auto id : {"enabled","bars","recording","hide_in_menus","profiling"})
+        read_and_watch(id, SWOFTY_SETTING_TOGGLE);
+    for (auto id : {"history","width","height","opacity","anchor","horizontal","vertical","review_key"})
+        read_and_watch(id, SWOFTY_SETTING_SLIDER);
     api->log("[input-overlay] live HUD hidden in menus by default; requires fresh UDP lap data while driving");
     if(api->events) {
         api->events->subscribe(SWOFTY_EVENT_SESSION_START,reset_event,nullptr,nullptr);

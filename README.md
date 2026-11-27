@@ -67,6 +67,8 @@ Recorded laps stay in memory only. Exiting the game or a session reset clears th
 - **Waiting for UDP:** check format **2025**, address `127.0.0.1` and port `20777`. Close other apps listening on that port and restart the game.
 - **F6 does nothing:** pause from an active session or return to the garage, keep the game window active. Check the master toggle and configured key. Older cores can support the live HUD without lap review.
 
+Under **ADDON SETTINGS → F1 25 Input Overlay**, turn on **Enable performance profiling** to collect overlay CPU timings. It defaults to off. For late-race stutter, see [how to capture the overlay timings](docs/TEST_PLAN.md#late-race-stutter-capture).
+
 See [installation, settings and troubleshooting](docs/INSTALL.md), or [report a problem](https://github.com/L0G4NN/F125-Input-Overlay/issues).
 
 ## More information

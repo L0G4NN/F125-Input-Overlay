@@ -50,15 +50,37 @@ int main() {
     fixture::pair(r,1,0,1,.01f);fixture::pair(r,1,998,2,.02f);r.accept(fixture::meta(2,0,3,.03f),.03);
     SwoftyOverlay ov{};ov.input=read_input;ov.focus=focus;ov.size=size;ov.rect=rect;ov.line=line;ov.text=text;
     SwoftyApi api{};api.overlay=&ov;Panel p;
-    auto paint=[&](bool safe=true,bool active=true,bool supported=true){p.paint(&api,nullptr,r,0,safe,active,bound_hotkey,supported);};
+    using input_trace::PerfProbes;
+    static unsigned entries[5]{}, exits=0, registered=0;
+    auto register_probe = +[](const char*,const char*) -> std::uint32_t { return ++registered; };
+    auto enter = +[](std::uint32_t id) { check(id>0 && id<5); ++entries[id]; };
+    auto leave = +[] { ++exits; };
+    const auto missing=PerfProbes::create(register_probe,enter,nullptr);
+    { PerfProbes::Scope ignored(missing,missing.review); }
+    check(!registered && !exits);
+    const auto perf=PerfProbes::create(register_probe,enter,leave);
+    { PerfProbes::Scope skipped(perf,0); }
+    check(!exits);
+    bool profiling_enabled = false;
+    auto paint=[&](bool safe=true,bool active=true,bool supported=true){p.paint(&api,nullptr,r,0,safe,active,bound_hotkey,supported,perf.for_frame(profiling_enabled));};
     paint();check(!p.open() && !texts && !lines && !rects);
+    check(!entries[perf.review] && !entries[perf.rebuild] && !exits);
     // F8 must not open a new F6-default panel or acquire input focus.
     input.keys_pressed[119/8]|=1u<<(119%8);paint();check(!p.open() && !focus_calls);input={};
     input.keys_pressed[default_hotkey/8]|=1u<<(default_hotkey%8);paint(false);check(!p.open()); auto reads=input_calls;paint(false);check(input_calls==reads);
     paint(true,true,false);check(!p.open() && !focus_calls); // old cores: never touch v3
     paint();check(p.open() && focused);input={};paint();
     check(lines<=2060 && texts>0 && std::strcmp(rendered_key_hint,"F6 / Esc  Close review")==0);
+    check(!entries[perf.review] && !entries[perf.rebuild] && !exits);
+    // Rebuild the visible plot with timing on, then off, then on again.
+    input.x=875; input.y=145; input.pressed=SWOFTY_MOUSE_LEFT; // Reset view
+    profiling_enabled=true; paint();
+    check(entries[perf.review]==1 && entries[perf.rebuild]==1 && exits==2);
+    profiling_enabled=false; paint();
+    check(p.open() && focused && entries[perf.review]==1 && entries[perf.rebuild]==1 && exits==2);
+    profiling_enabled=true; input={};
     bound_hotkey=118;paint();check(std::strcmp(rendered_key_hint,"F7 / Esc  Close review")==0);
+    check(entries[perf.review]==2 && entries[perf.rebuild]==1 && exits==3);
     bound_hotkey=default_hotkey;
     // Another overlay takes focus: close without reclaiming it.
     focused=false;paint();check(!p.open() && !focused);

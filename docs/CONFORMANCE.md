@@ -7,7 +7,7 @@ This is a source and package contract review, not certification of game compatib
 | Area | Project decision and evidence | Status |
 | --- | --- | --- |
 | [Manifest](https://f1.swofty.net/reference/addons/manifest.html) | Schema 1, lowercase dotted ID, semver, author L0G4NN, repository URL, native DLL operation, core dependency, overlay experimental feature. No unrelated registry/game content. | Checked against documented fields; actual launcher validation pending |
-| [Settings](https://f1.swofty.net/reference/addons/settings.html) | All twelve options use native bindings; slider ranges have integral steps, at most 100, and defaults on the grid. Reads and watches use documented C ABI types; finite values clamped. | Source/package checks pass; live changes/persistence pending |
+| [Settings](https://f1.swofty.net/reference/addons/settings.html) | All options use native bindings; slider ranges have integral steps, at most 100, and defaults on the grid. Reads and watches use documented C ABI types; finite values clamped. | Source/package checks pass; live changes/persistence pending |
 | [Overlay](https://f1.swofty.net/reference/std/overlay.html) | API v5 with runtime-gated v3 overlay input; framebuffer size queried per paint, top-left coordinates, RRGGBBAA, scale min(width/1920,height/1080). Registration retries through on_frame. Paint/Feed/socket have one render owner. | Source checked; actual painting pending |
 | Overlay cost | Bounded 8,192 samples and 128 receives per paint. At 60 Hz, 5/15 seconds produce about 600/1,800 trace lines; pinned renderer batches compatible geometry. No logging per normal frame. | Bounded work verified; game CPU/GPU frame-time budget unmeasured |
 | [Events](https://f1.swofty.net/reference/std/events.html) | Session and pause handlers publish atomic flags; render owns mutable history. Queue gate breaks after reset, pause/resume and render stalls. Optional event hooks may be absent on older cores. | Regression tests pass; event delivery/game lifecycle pending |
@@ -29,3 +29,5 @@ Install the `.swoftyaddon` on the Addons page (or `swofty addons install FILE`),
 
 
 See the [multi-driver guide](MULTI_DRIVER_REVIEW.md) for review controls, storage and validation.
+
+The optional CPU timing probes use the profiling exports verified against Swofty v1.10.54 (`fb0a8f3`). The addon resolves and registers the probes at load when the exports are available. Each paint uses the current profiling setting, which defaults to off. See [late-race stutter capture](TEST_PLAN.md#late-race-stutter-capture).
